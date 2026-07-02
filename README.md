@@ -188,9 +188,13 @@ source view 0 → target views 1..7 (7 pairs), CLIP `ViT-B-32`, VGGT-Omega `1b_5
 
 **VBench (classic, no-reference, ↑; run in a `vbench` env on the same 7 clips):**
 
-| aesthetic_quality | imaging_quality | subject_consistency | background_consistency | temporal_style |
-|--:|--:|--:|--:|--:|
-| 0.6018 | 0.7261 | 0.9325 | 0.9538 | 0.0790 |
+| dimension | score |
+|-----------|:--:|
+| aesthetic_quality | 0.602 |
+| imaging_quality | 0.726 |
+| subject_consistency | 0.932 |
+| background_consistency | 0.954 |
+| temporal_style | 0.079 |
 
 Interpretation (this is the expected shape of a correct install):
 - **Paired metrics are perfect**: PSNR caps at 100, SSIM = 1, LPIPS = 0 — pred is byte-identical GT.
