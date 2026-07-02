@@ -180,9 +180,17 @@ Feeding the **GT target video as the "prediction"** must produce near-perfect
 scores. This was run end-to-end on the held-out Syn4D scene `flying_group/seq_000000`,
 source view 0 → target views 1..7 (7 pairs), CLIP `ViT-B-32`, VGGT-Omega `1b_512`:
 
+**Camera + video + paired:**
+
 | track | pairs | ate ↓ | rot_err° ↓ | trans_err ↓ | fvd ↓ | clip_f ↑ | clip_v ↑ | psnr ↑ | ssim ↑ | lpips ↓ |
 |-------|:--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | syn4d | 7 | **0.0041** | **0.0413** | **0.0036** | **−0.0009** | **0.9857** | **0.8583** | **100.0** | **1.000** | **0.000** |
+
+**VBench (classic, no-reference, ↑; run in a `vbench` env on the same 7 clips):**
+
+| aesthetic_quality | imaging_quality | subject_consistency | background_consistency | temporal_style |
+|--:|--:|--:|--:|--:|
+| 0.6018 | 0.7261 | 0.9325 | 0.9538 | 0.0790 |
 
 Interpretation (this is the expected shape of a correct install):
 - **Paired metrics are perfect**: PSNR caps at 100, SSIM = 1, LPIPS = 0 — pred is byte-identical GT.
@@ -190,6 +198,7 @@ Interpretation (this is the expected shape of a correct install):
 - **Camera ATE/RPE are small but not exactly 0**: VGGT re-estimates poses from *pixels*, so even the true target video yields a slightly noisy trajectory — this is the estimator's noise floor, not a bug.
 - **CLIP-V = 0.86 (< 1)**: source and target are genuinely different viewpoints, so cross-view cosine is high but not 1. CLIP-F = 0.99 (adjacent frames are very similar).
 - **CLIP-T blank**: no prompts were passed.
+- **VBench**: subject/background consistency are high (~0.93–0.95, coherent real renders); `temporal_style` is low (~0.08) because it is a prompt-referenced dimension and no prompts were supplied in `custom_input` mode — pass `--prompts` to make it meaningful.
 
 Reproduce on a single GPU:
 ```bash
@@ -240,6 +249,74 @@ from training). `cam_c2w` is the target view's pose relative to the source frame
 | `--gpu` | 0 | GPU index (also honor `CUDA_VISIBLE_DEVICES`). |
 
 ---
+
+## Worked example — `assets/example_pair/`
+
+A concrete, committed instance of the contract (one Syn4D held-out pair,
+`flying_group/seq_000000`, source view 0 → target view 1):
+```
+assets/example_pair/
+  source.mp4             # input/source view       (49 frames, 512x288)
+  target.mp4             # GT target-view video for the requested trajectory
+  target_trajectory.npz  # np.load(...)["cam_c2w"] -> (49,4,4) float32 c2w
+```
+Inspect the npz:
+```python
+import numpy as np
+d = np.load("assets/example_pair/target_trajectory.npz")
+print(d["cam_c2w"].shape, d["cam_c2w"].dtype)   # (49, 4, 4) float32
+```
+Turn it into a runnable one-pair submission tree and score it (perfect "prediction" = GT):
+```bash
+seq=demo; traj=t0
+mkdir -p ex/preds/$seq/$traj ex/gt/$seq/$traj ex/sources/$seq/$traj ex/cameras/$seq
+cp assets/example_pair/target.mp4            ex/preds/$seq/$traj/pred.mp4
+cp assets/example_pair/target.mp4            ex/gt/$seq/$traj/gt.mp4
+cp assets/example_pair/source.mp4            ex/sources/$seq/$traj/source.mp4
+cp assets/example_pair/target_trajectory.npz ex/cameras/$seq/$traj.npz
+vdm-nvs-bench eval --track syn4d \
+  --pred ex/preds --gt ex/gt --source ex/sources --cameras ex/cameras \
+  --out ex/results --only camera,paired --clip_model ViT-B-32
+```
+(one pair is enough for `camera` + `paired`; `fvd` needs ≥ 2 videos so it is `null` with a single pair.)
+
+## Full reproduction walkthrough (agent copy-paste)
+
+```bash
+# 0) env: a CUDA box with ffmpeg. From the repo root:
+pip install -e .
+python scripts/download_weights.py            # VGGT-Omega + I3D (CLIP auto-downloads on first CLIP call)
+
+# 1) fastest end-to-end proof it all works (no dataset needed): the smoke self-checks
+python tests/test_smoke.py                     # contracts + evo pose core, no GPU/weights
+
+# 2) GT-vs-GT sanity on real Syn4D held-out data (materialize GT, set pred=gt, score)
+#    Requires the Syn4D dataset; override DATASET_ROOT/VGGT_CKPT as needed.
+bash scripts/run_gt_sanity_1gpu.sh             # prints a leaderboard row; see table above
+
+# 3) score a REAL submission
+vdm-nvs-bench eval --track syn4d \
+  --pred  /path/preds   --gt /path/gt --source /path/sources --cameras /path/cameras \
+  --out results/syn4d/
+cat results/syn4d/leaderboard.tsv
+python -c "import json;print(json.dumps(json.load(open('results/syn4d/summary.json'))['video'],indent=2))"
+```
+
+## Running VBench (classic, 5 no-reference dims)
+
+VBench is a separate suite; it downloads its own models on first use and its CLI
+takes **one `--dimension` per call** (the wrapper loops over the 5 dims). Install
+the extra, or reuse an env that already has the `vbench` CLI:
+```bash
+pip install -e '.[vbench]'                     # needs CUDA present at build time (deepspeed dep)
+# or reuse an existing env:
+conda activate /path/to/vbench-env             # must have `vbench` on PATH
+CUDA_VISIBLE_DEVICES=0 vdm-nvs-bench eval --track davis \
+  --pred PREDS/ --out results/ --only vbench
+```
+Output: `results/<track>/vbench/*_eval_results.json` (raw) parsed into
+`summary.json["vbench"]`. Dims (all ↑): aesthetic_quality, imaging_quality,
+subject_consistency, background_consistency, temporal_style.
 
 ## Troubleshooting
 - **CUDA OOM on the camera step**: VGGT-Omega needs ~8–10 GB. Use a freer GPU (`--gpu N` / `CUDA_VISIBLE_DEVICES`), and `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.

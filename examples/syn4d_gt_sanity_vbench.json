@@ -1,0 +1,23 @@
+{
+  "track": "syn4d",
+  "num_pairs": 7,
+  "components": [
+    "vbench"
+  ],
+  "vbench": {
+    "vbench": {
+      "aesthetic_quality": 0.6018486363547189,
+      "imaging_quality": 0.7260816024691301,
+      "subject_consistency": 0.9324957108391183,
+      "background_consistency": 0.9538428896949405,
+      "temporal_style": 0.07895788656813758
+    },
+    "eval_jsons": [
+      "/tmp/syn4d_gt_sanity/results_vbench/vbench/results_2026-07-02-13:54:59_eval_results.json",
+      "/tmp/syn4d_gt_sanity/results_vbench/vbench/results_2026-07-02-13:55:39_eval_results.json",
+      "/tmp/syn4d_gt_sanity/results_vbench/vbench/results_2026-07-02-13:56:24_eval_results.json",
+      "/tmp/syn4d_gt_sanity/results_vbench/vbench/results_2026-07-02-13:56:59_eval_results.json",
+      "/tmp/syn4d_gt_sanity/results_vbench/vbench/results_2026-07-02-13:57:32_eval_results.json"
+    ]
+  }
+}

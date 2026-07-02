@@ -65,17 +65,19 @@ def run_vbench_eval(
         raise RuntimeError(
             "`vbench` CLI not found. Install the extra: pip install 'vdm-nvs-bench[vbench]'"
         )
-    cmd = [
-        "vbench", "evaluate",
-        "--dimension", *list(dimensions),
-        "--videos_path", str(flat),
-        "--mode", "custom_input",
-        "--output_path", str(out_dir),
-        "--imaging_quality_preprocessing_mode", imaging_quality_preprocessing_mode,
-        "--ngpus", str(ngpus),
-    ]
-    print("[vbench]", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    # The vbench CLI takes ONE --dimension per call, so invoke once per dimension.
+    for dim in dimensions:
+        cmd = [
+            "vbench", "evaluate",
+            "--dimension", dim,
+            "--videos_path", str(flat),
+            "--mode", "custom_input",
+            "--output_path", str(out_dir),
+            "--imaging_quality_preprocessing_mode", imaging_quality_preprocessing_mode,
+            "--ngpus", str(ngpus),
+        ]
+        print("[vbench]", " ".join(cmd))
+        subprocess.run(cmd, check=True)
     return parse_vbench_results(out_dir, dimensions)
 
 
