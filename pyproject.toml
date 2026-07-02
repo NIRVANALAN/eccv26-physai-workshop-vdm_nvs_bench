@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vdm-nvs-bench"
+version = "0.1.0"
+description = "Self-contained evaluation for VDM novel-view synthesis under camera control (ECCV'26 workshop challenge)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.3",
+    "torchvision>=0.18",
+    "numpy<2",
+    "scipy",
+    "opencv-python",
+    "einops",
+    "safetensors",
+    "pillow",
+    "imageio",
+    "imageio-ffmpeg",
+    "tqdm",
+    "evo",
+    "open_clip_torch",
+    "huggingface_hub",
+    "ftfy",
+    "regex",
+    "lpips",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+# VBench install needs CUDA present at build time (deepspeed metadata step).
+vbench = ["vbench"]
+
+[project.scripts]
+vdm-nvs-bench = "vdm_nvs_bench.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vdm_nvs_bench*"]
+
+[tool.setuptools.package-data]
+"vdm_nvs_bench.video.common_metrics" = ["fvd/styleganv/*.pt"]

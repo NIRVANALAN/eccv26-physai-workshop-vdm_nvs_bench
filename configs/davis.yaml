@@ -1,0 +1,15 @@
+# DAVIS track — no target-view GT.
+# Camera accuracy = VGGT-Omega recovered pose vs the requested trajectory.
+# Video quality  = distribution FVD (pred vs source) + CLIP-F/CLIP-T + VBench (no-reference).
+track: davis
+components: [camera, video, vbench]
+num_frames: 49
+target_w: 512
+target_h: 288
+fvd_size: 256
+clip_model: "hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+# Expected roots (pass on the CLI):
+#   --pred <root>/<seq>/<traj>/pred.mp4
+#   --cameras <root>/<seq>/<traj>.npz   (key cam_c2w = requested trajectory)
+#   --source <root>/<seq>/<traj>/source.mp4
+#   --prompts prompts.json  (optional, for CLIP-T / temporal_style)

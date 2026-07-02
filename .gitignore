@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+# Large model weights — fetched by scripts/download_weights.py on a clean clone
+weights/*.pt
+vdm_nvs_bench/video/common_metrics/fvd/styleganv/i3d_torchscript.pt
+results/
