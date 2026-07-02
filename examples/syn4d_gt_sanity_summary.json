@@ -1,0 +1,216 @@
+{
+  "track": "syn4d",
+  "num_pairs": 7,
+  "components": [
+    "camera",
+    "video",
+    "paired"
+  ],
+  "camera": {
+    "pred_root": "/tmp/syn4d_gt_sanity/preds",
+    "pose_estimator": "vggt_omega",
+    "num_pairs_evaluated": 7,
+    "num_pairs_total": 7,
+    "checkpoint": "/scratch/shared/beegfs/gabrijel/hf/facebook/VGGT-Omega/vggt_omega_1b_512.pt",
+    "ate": {
+      "mean": 0.004079633547234776,
+      "std": 0.0011528821357366114,
+      "median": 0.004334097098921201,
+      "n": 7
+    },
+    "trans_err": {
+      "mean": 0.003607095313989465,
+      "std": 0.0003396755181760879,
+      "median": 0.003669920075733476,
+      "n": 7
+    },
+    "rot_err": {
+      "mean": 0.04127845781171576,
+      "std": 0.004252044283225771,
+      "median": 0.03993480150005288,
+      "n": 7
+    },
+    "sim3_subset": {
+      "ate": {
+        "mean": 0.004079633547234776,
+        "std": 0.0011528821357366114,
+        "median": 0.004334097098921201,
+        "n": 7
+      },
+      "trans_err": {
+        "mean": 0.003607095313989465,
+        "std": 0.0003396755181760879,
+        "median": 0.003669920075733476,
+        "n": 7
+      },
+      "rot_err": {
+        "mean": 0.04127845781171576,
+        "std": 0.004252044283225771,
+        "median": 0.03993480150005288,
+        "n": 7
+      }
+    },
+    "origin_subset": {
+      "ate": {
+        "mean": null,
+        "std": null,
+        "median": null,
+        "n": 0
+      },
+      "trans_err": {
+        "mean": null,
+        "std": null,
+        "median": null,
+        "n": 0
+      },
+      "rot_err": {
+        "mean": null,
+        "std": null,
+        "median": null,
+        "n": 0
+      }
+    },
+    "all_norm": {
+      "ate": {
+        "mean": 0.01851745649081869,
+        "std": 0.007068414246955832,
+        "median": 0.01853068881011803,
+        "n": 7
+      },
+      "trans_err": {
+        "mean": 0.003608340227494605,
+        "std": 0.0003402494288398869,
+        "median": 0.0036732922979071892,
+        "n": 7
+      },
+      "rot_err": {
+        "mean": 0.04127845781171576,
+        "std": 0.004252044283225771,
+        "median": 0.03993480150005288,
+        "n": 7
+      }
+    },
+    "per_pair": [
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt1",
+        "ate": 0.004334097098921201,
+        "trans_err": 0.004192031664978261,
+        "rot_err": 0.04800748737613952,
+        "ate_norm": 0.030101101155818037,
+        "trans_err_norm": 0.004193915291032682,
+        "gt_centered_norm": 0.9840457386706498,
+        "pred_centered_norm": 0.12049420443827487,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt2",
+        "ate": 0.006143246524395391,
+        "trans_err": 0.00390710865183899,
+        "rot_err": 0.04248975013491891,
+        "ate_norm": 0.021487152294200465,
+        "trans_err_norm": 0.00390890375358042,
+        "gt_centered_norm": 1.334019325109163,
+        "pred_centered_norm": 0.12246628286163766,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt3",
+        "ate": 0.004705197297938265,
+        "trans_err": 0.003669920075733476,
+        "rot_err": 0.046373688097206905,
+        "ate_norm": 0.025350619470795022,
+        "trans_err_norm": 0.0036732922979071892,
+        "gt_centered_norm": 0.7491295777504009,
+        "pred_centered_norm": 0.06493332278741627,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt4",
+        "ate": 0.003040107097216864,
+        "trans_err": 0.0037002727929894685,
+        "rot_err": 0.03534572139730915,
+        "ate_norm": 0.011882695808674787,
+        "trans_err_norm": 0.003700499659600014,
+        "gt_centered_norm": 1.822095402536249,
+        "pred_centered_norm": 0.1458760198769934,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt5",
+        "ate": 0.002554170628933505,
+        "trans_err": 0.003289631123848419,
+        "rot_err": 0.03803556551112949,
+        "ate_norm": 0.013008849617150051,
+        "trans_err_norm": 0.0032898344499249664,
+        "gt_centered_norm": 1.550390533186074,
+        "pred_centered_norm": 0.12416200956284199,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt6",
+        "ate": 0.0031453115494189878,
+        "trans_err": 0.0032317885154217484,
+        "rot_err": 0.03993480150005288,
+        "ate_norm": 0.009261088278974424,
+        "trans_err_norm": 0.0032324420756828756,
+        "gt_centered_norm": 1.0456472563243993,
+        "pred_centered_norm": 0.10329426715872943,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      },
+      {
+        "seq": "flying_group_seq_000000",
+        "traj": "src0_tgt7",
+        "ate": 0.004635304633819219,
+        "trans_err": 0.0032589143731158892,
+        "rot_err": 0.03876219066525351,
+        "ate_norm": 0.01853068881011803,
+        "trans_err_norm": 0.0032594940647340887,
+        "gt_centered_norm": 1.5945652883351218,
+        "pred_centered_norm": 0.15154000432867096,
+        "num_aligned_poses": 49,
+        "alignment_mode": "umeyama_align_scale"
+      }
+    ]
+  },
+  "video": {
+    "track": "syn4d",
+    "num_samples": 7,
+    "clip_model": "ViT-B-32",
+    "clip_t": null,
+    "clip_f": {
+      "value": 0.985703604561942,
+      "std": 0.0024525332122111165,
+      "count": 7
+    },
+    "clip_v": {
+      "value": 0.858288083757673,
+      "std": 0.050884693657256,
+      "count": 7
+    },
+    "fvd": {
+      "value": -0.0008558035206390202,
+      "reference": "gt",
+      "num_videos": 7,
+      "num_frames": 49
+    }
+  },
+  "paired": {
+    "psnr": 100.0,
+    "ssim": 1.0,
+    "lpips": 0.0,
+    "count": 7,
+    "num_frames": 49
+  }
+}
