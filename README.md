@@ -216,6 +216,32 @@ The raw JSON of this run is committed at `examples/syn4d_gt_sanity_summary.json`
 
 ---
 
+## Reference baseline — RecamMaster on the held-out Syn4D subset
+
+A real (non-GT) reference so you know what a working camera-control model scores on
+this bench. **RecamMaster** (original ReCamMaster step20000, raw 480×832×81) on the
+held-out Syn4D scene `flying_group/seq_000001`, source view 0 → target views 1..7
+(7 pairs, the recammaster-official eval convention), scored with the **canonical
+ViT-H-14** CLIP at native 81 frames:
+
+| n | ate ↓ | trans_err ↓ | rot_err° ↓ | fvd ↓ | clip_v ↑ | clip_f ↑ | psnr ↑ | ssim ↑ | lpips ↓ |
+|:--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 7 | **0.0617** | **0.0226** | **0.426** | **1759.5** | **0.859** | **0.970** | **12.60** | **0.222** | **0.575** |
+
+Contrast with the GT-vs-GT row above (ate 0.004, psnr 100): a real generative model
+follows the requested camera to ~0.4° but its pixels are a genuine novel-view
+*synthesis* (psnr ≈ 12.6, not 100). This is the expected shape of a real submission.
+(FVD over 7 clips is high-variance — a small-sample reference, not a headline number.)
+
+**Reproduce** (held-out subset + RecamMaster raw-resolution predictions + this scoring):
+the companion release `nvs_syn4d_eval_set/` ships the source rgb+depth+camera+mask and
+the RecamMaster 832×480×81 predictions, so `tools/score_recammaster.py` →
+`tools/final_row.py` reproduces the row above with no dataset or inference needed.
+`score_recammaster.py` is a thin adapter that maps RecamMaster outputs into this bench's
+`(seq,traj)` contract (`cam_c2w = rel_target_c2w`) and calls `vdm-nvs-bench eval --track syn4d`.
+
+---
+
 ## Building the Syn4D held-out GT package
 
 `scripts/make_syn4d_heldout.py` converts a reserved Syn4D scene into the submission
