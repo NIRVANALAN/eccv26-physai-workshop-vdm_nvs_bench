@@ -224,21 +224,43 @@ held-out Syn4D scene `flying_group/seq_000001`, source view 0 → target views 1
 (7 pairs, the recammaster-official eval convention), scored with the **canonical
 ViT-H-14** CLIP at native 81 frames:
 
-| n | ate ↓ | trans_err ↓ | rot_err° ↓ | fvd ↓ | clip_v ↑ | clip_f ↑ | psnr ↑ | ssim ↑ | lpips ↓ |
-|:--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 7 | **0.0478** | **0.0224** | **0.434** | **1780.8** | **0.862** | **0.969** | **12.61** | **0.227** | **0.573** |
+| n | ate ↓ | trans_err ↓ | rot_err° ↓ | clip_v ↑ | clip_f ↑ | psnr ↑ | ssim ↑ | lpips ↓ |
+|:--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 7 | **0.0478** | **0.0224** | **0.434** | **0.862** | **0.969** | **12.61** | **0.227** | **0.573** |
+
+> **FVD is omitted here on purpose:** 7 clips is far too small for a stable Fréchet
+> estimate. FVD remains a first-class bench metric on larger sets (e.g. the DAVIS track);
+> it is just not meaningful as a 7-clip reference.
 
 Contrast with the GT-vs-GT row above (ate 0.004, psnr 100): a real generative model
 follows the requested camera to ~0.4° but its pixels are a genuine novel-view
 *synthesis* (psnr ≈ 12.6, not 100). This is the expected shape of a real submission.
-(FVD over 7 clips is high-variance — a small-sample reference, not a headline number.)
 
-**Reproduce** (held-out subset + RecamMaster raw-resolution predictions + this scoring):
-the companion release `nvs_syn4d_eval_set/` ships the source rgb+depth+camera+mask and
-the RecamMaster 832×480×81 predictions, so `tools/score_recammaster.py` →
-`tools/final_row.py` reproduces the row above with no dataset or inference needed.
-`score_recammaster.py` is a thin adapter that maps RecamMaster outputs into this bench's
-`(seq,traj)` contract (`cam_c2w = rel_target_c2w`) and calls `vdm-nvs-bench eval --track syn4d`.
+### Reproduce this row step-by-step (no Syn4D dataset, no inference needed)
+
+The data package — the held-out inputs (rgb + depth + camera + mask) **and** the
+RecamMaster raw-resolution (832×480×81) predictions — is published on Hugging Face:
+[`yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset`](https://huggingface.co/datasets/yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset).
+
+```bash
+# a) install THIS bench + download its weights (see TL;DR above)
+pip install -e . && python scripts/download_weights.py      # VGGT-Omega + I3D (CLIP auto-downloads)
+
+# b) pull the data package and extract it
+hf download yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset --repo-type=dataset --local-dir nvs_syn4d_subset
+tar --use-compress-program=unzstd -xf nvs_syn4d_subset/nvs_syn4d_eval_set_recammaster.tar.zst
+cd nvs_syn4d_eval_set
+
+# c) score the shipped predictions and print the row above
+export VDM_NVS_BENCH=/abs/path/to/this/vdm-nvs-bench/checkout
+python tools/score_recammaster.py --out score_out          # camera(VGGT-Omega)+CLIP+PSNR/SSIM/LPIPS, ViT-H-14, 81 frames
+python tools/final_row.py                                  # -> the reference row
+```
+`tools/score_recammaster.py` is a thin adapter: it maps the shipped RecamMaster outputs
+into this bench's `(seq,traj)` contract (`cam_c2w = rel_target_c2w`) and calls
+`vdm-nvs-bench eval --track syn4d`. To **re-infer** the predictions from the original
+RecamMaster instead of using the shipped ones, follow `REPRODUCE.md §6` inside the archive
+(needs the recammaster-official repo for `diffsynth`, the `step20000` ckpt, and the Syn4D dataset).
 
 ---
 
