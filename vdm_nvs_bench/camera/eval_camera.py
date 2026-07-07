@@ -3,9 +3,10 @@
 pred.mp4 -> standardized mp4 -> frames -> VGGT-Omega -> predicted c2w
         -> Sim(3)-aligned ATE/RPE vs the requested target trajectory (GT).
 
-The vendored `vggt_omega` package (under this directory) uses absolute
-`vggt_omega.*` imports internally, so it must be importable top-level; we add this
-directory to sys.path rather than relative-importing it.
+The camera pose estimator is the OFFICIAL vggt_omega package
+(https://github.com/facebookresearch/vggt-omega). It is NOT vendored here — install it
+(`pip install -e vggt-omega`) or point $VGGT_OMEGA_REPO at a checkout. See the README
+"Setup" section.
 """
 from __future__ import annotations
 
@@ -25,13 +26,30 @@ from .pose_metrics import (
     standardize_pred_mp4,
 )
 
-_CAMERA_DIR = Path(__file__).resolve().parent  # contains the vendored vggt_omega/ package
 DEFAULT_PRED_FILENAMES = "pred.mp4,pred_rgb.mp4,{traj}.mp4,gen.mp4,output.mp4,render.mp4,color_{traj}.mp4"
+
+_VGGT_SETUP_HINT = (
+    "vggt_omega (camera pose estimator) not found. Set up the OFFICIAL repo:\n"
+    "  git clone https://github.com/facebookresearch/vggt-omega\n"
+    "  pip install -e vggt-omega\n"
+    "or point $VGGT_OMEGA_REPO at the checkout. See the README 'Setup' section."
+)
 
 
 def _ensure_vggt_omega_import() -> None:
-    if str(_CAMERA_DIR) not in sys.path:
-        sys.path.insert(0, str(_CAMERA_DIR))
+    """Make the OFFICIAL vggt_omega package importable: a pip install first, else a
+    checkout pointed to by $VGGT_OMEGA_REPO. Raises with setup instructions otherwise."""
+    try:
+        import vggt_omega  # noqa: F401
+        return
+    except ImportError:
+        pass
+    repo = os.environ.get("VGGT_OMEGA_REPO", "").strip()
+    if repo and (Path(repo) / "vggt_omega").is_dir():
+        if repo not in sys.path:
+            sys.path.insert(0, repo)
+        return
+    raise ImportError(_VGGT_SETUP_HINT)
 
 
 def _extract_frames(mp4_path: Path, frames_dir: Path, num_frames: int) -> List[Path]:

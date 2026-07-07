@@ -22,9 +22,12 @@ pixel-aligned GT frame — enabling **paired** scoring.
 ## TL;DR for a coding agent
 
 ```bash
-# 1. install (core = camera + video + paired). Needs a CUDA GPU and ffmpeg.
-pip install -e .
-python scripts/download_weights.py          # VGGT-Omega ~4.6GB + I3D ~49MB
+# 0. python env (>=3.10), on a box with a CUDA GPU + ffmpeg on PATH
+conda create -n vdm-nvs-bench python=3.10 -y && conda activate vdm-nvs-bench
+# 1. install the OFFICIAL camera model (vggt-omega) + this bench  (see "Setup" below)
+git clone https://github.com/facebookresearch/vggt-omega && pip install -e vggt-omega
+pip install -e .                            # this repo (vdm-nvs-bench); core = camera + video + paired
+python scripts/download_weights.py          # VGGT-Omega ckpt ~4.6GB + I3D ~49MB
 
 # 2a. DAVIS track
 vdm-nvs-bench eval --track davis \
@@ -46,9 +49,44 @@ lighter (non-canonical) CLIP. VBench is an optional extra (`pip install -e '.[vb
 
 ---
 
+## Setup (one-time)
+
+The evaluation pipeline is **not** magic — set it up explicitly so it is reproducible.
+Nothing is silently vendored: the camera model comes from its **official** repo.
+
+```bash
+# 1) a clean python env (>=3.10) on a CUDA box with `ffmpeg` on PATH
+conda create -n vdm-nvs-bench python=3.10 -y
+conda activate vdm-nvs-bench
+
+# 2) the OFFICIAL camera pose estimator — vggt-omega — cloned + installed
+git clone https://github.com/facebookresearch/vggt-omega
+pip install -e vggt-omega                      # provides the top-level `vggt_omega` package
+
+# 3) this benchmark
+pip install -e .                               # installs the `vdm-nvs-bench` CLI + `vdm_nvs_bench`
+
+# 4) model weights (once)
+python scripts/download_weights.py             # VGGT-Omega ckpt (~4.6GB) + styleganv I3D (~49MB)
+                                               # CLIP ViT-H-14 (~3.7GB) auto-downloads on first CLIP call
+```
+
+Notes:
+- If you cannot `pip install -e vggt-omega`, point the bench at the checkout instead:
+  `export VGGT_OMEGA_REPO=/abs/path/to/vggt-omega`. The camera step raises a clear
+  setup message if `vggt_omega` is neither installed nor reachable via that variable.
+- **Re-running RecamMaster inference** additionally needs the `recammaster-official`
+  repo (for its `diffsynth` `WanVideoReCamMasterPipeline`), the ReCamMaster `step20000`
+  ckpt + `Wan2.1-T2V-1.3B` base, and the Syn4D dataset — see the data-package `REPRODUCE.md §6`.
+  Scoring the shipped predictions does **not** need any of that.
+
+---
+
 ## Requirements
 - **Linux + CUDA GPU** (VGGT-Omega and FVD/CLIP need it); ≥ ~12 GB free for the camera model.
 - `ffmpeg` binary on `PATH` (predictions are standardized with it before pose recovery).
+- **`vggt-omega` from its official repo**, installed (`pip install -e vggt-omega`) or
+  reachable via `$VGGT_OMEGA_REPO` — it is a code dependency, not bundled. See **Setup**.
 - Weights auto-downloaded on first use (~9 GB total):
   - VGGT-Omega `vggt_omega_1b_512.pt` (~4.6 GB, HF `facebook/VGGT-Omega`) — camera.
   - CLIP ViT-H-14 laion2B (~3.7 GB, HF, via `open_clip`) — canonical CLIP metrics.
@@ -243,7 +281,8 @@ RecamMaster raw-resolution (832×480×81) predictions — is published on Huggin
 [`yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset`](https://huggingface.co/datasets/yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset).
 
 ```bash
-# a) install THIS bench + download its weights (see TL;DR above)
+# a) one-time setup: env + official vggt-omega + this bench + weights (see "Setup" above)
+git clone https://github.com/facebookresearch/vggt-omega && pip install -e vggt-omega
 pip install -e . && python scripts/download_weights.py      # VGGT-Omega + I3D (CLIP auto-downloads)
 
 # b) pull the data package and extract it
