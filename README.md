@@ -226,7 +226,7 @@ ViT-H-14** CLIP at native 81 frames:
 
 | n | ate ↓ | trans_err ↓ | rot_err° ↓ | fvd ↓ | clip_v ↑ | clip_f ↑ | psnr ↑ | ssim ↑ | lpips ↓ |
 |:--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 7 | **0.0617** | **0.0226** | **0.426** | **1759.5** | **0.859** | **0.970** | **12.60** | **0.222** | **0.575** |
+| 7 | **0.0478** | **0.0224** | **0.434** | **1780.8** | **0.862** | **0.969** | **12.61** | **0.227** | **0.573** |
 
 Contrast with the GT-vs-GT row above (ate 0.004, psnr 100): a real generative model
 follows the requested camera to ~0.4° but its pixels are a genuine novel-view
