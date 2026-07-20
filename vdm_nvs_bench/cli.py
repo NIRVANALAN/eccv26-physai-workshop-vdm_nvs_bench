@@ -92,7 +92,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
 
     (out / "summary.json").write_text(json.dumps(results, indent=2))
     # `leaderboard.csv` is the challenge-facing artifact: one complete row per
-    # submission that the organizer can concatenate and rank by ATE.  Keep the
+    # submission that the organizer can concatenate and rank by PSNR. Keep the
     # historical TSV name as a compatibility alias for existing scripts.
     _write_leaderboard_row(out / "leaderboard.csv", args.track, results, delimiter=",")
     _write_leaderboard_row(out / "leaderboard.tsv", args.track, results, delimiter="\t")
@@ -110,8 +110,8 @@ def _write_leaderboard_row(path: Path, track: str, results: dict, delimiter: str
     cols = {
         "track": track,
         "num_pairs": results.get("num_pairs", ""),
-        "rank_metric": "ate",
-        "rank_direction": "ascending",
+        "rank_metric": "psnr",
+        "rank_direction": "descending",
         "ate": g(cam, "ate", "mean"),
         "rot_err": g(cam, "rot_err", "mean"),
         "trans_err": g(cam, "trans_err", "mean"),

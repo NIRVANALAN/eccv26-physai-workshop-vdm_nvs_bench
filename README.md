@@ -115,9 +115,10 @@ vdm-nvs-bench eval --track syn4d \
 cat results/my_submission/leaderboard.csv
 ```
 
-`leaderboard.csv` contains one aggregate row for the submission. **ATE
-ascending is the ranking key** (`rank_metric=ate`, `rank_direction=ascending`),
-but every computed metric is included in that same CSV: ATE, rotation and
+`leaderboard.csv` contains one aggregate row for the submission. **PSNR
+descending is the Kaggle ranking key** (`rank_metric=psnr`,
+`rank_direction=descending`), while every computed metric remains in that same
+CSV: ATE, rotation and
 translation error, FVD, CLIP-F/T/V, PSNR, SSIM, LPIPS, and all five classic
 VBench dimensions. Empty fields mean a metric was intentionally not computed
 or lacked its required input; they are not silently treated as a good score.
@@ -238,7 +239,7 @@ rotation, and scale need not match any canonical frame — only the trajectory
 ```
 results/<track>/
   summary.json          # everything, merged
-  leaderboard.csv       # challenge row: ATE-ranked, all computed metrics (see below)
+  leaderboard.csv       # challenge row: PSNR-ranked, all computed metrics (see below)
   leaderboard.tsv       # compatibility copy of the same row
   camera_metrics.json   # full camera schema (also embedded in summary.json)
   video_metrics.json

@@ -63,7 +63,7 @@ def test_challenge_csv_contract():
         output = root / "leaderboard.csv"
         _write_leaderboard_row(output, "syn4d", results)
         row = next(csv.DictReader(output.open()))
-        assert row["rank_metric"] == "ate" and row["rank_direction"] == "ascending"
+        assert row["rank_metric"] == "psnr" and row["rank_direction"] == "descending"
         assert set(("ate", "rot_err", "trans_err", "fvd", "clip_f", "clip_t", "clip_v", "psnr", "ssim", "lpips", "vbench_aesthetic_quality", "vbench_imaging_quality", "vbench_subject_consistency", "vbench_background_consistency", "vbench_temporal_style")) <= set(row)
         assert row["vbench_aesthetic_quality"] == "0.6000"
     print("OK  test_challenge_csv_contract")
