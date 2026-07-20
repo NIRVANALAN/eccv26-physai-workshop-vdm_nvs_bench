@@ -5,12 +5,16 @@ novel-view synthesis (NVS) under camera control**. A participant clones this rep
 `pip install`s it, downloads weights once, and scores their generated videos —
 no dependence on any private/cluster code.
 
-There are two tracks:
+There are two evaluation modes. The workshop **NVS challenge** uses the Syn4D
+Kaggle split described in [Syn4D 3D Point-Tracking Challenge — participant
+starter kit](https://github.com/jzr99/syn4d-kaggle-challenge-participants), so
+the tracking and NVS challenges share exactly the same sequence identities and
+render variants.
 
 | Track | Target-view GT? | Camera metric | Video quality | Paired photometric |
 |-------|:---:|--------|---------------|--------|
 | **davis** | ❌ no | VGGT-Omega recovered pose vs the **requested trajectory** | FVD (pred vs source) + CLIP-F + CLIP-T + VBench | — |
-| **syn4d** | ✅ yes (held-out) | VGGT-Omega pose vs the **exact GT** trajectory | paired FVD (pred vs gt) + CLIP-V + CLIP-F/T + VBench | PSNR / SSIM / LPIPS |
+| **syn4d** (official NVS) | hidden test; available on validation | VGGT-Omega pose vs the **requested target trajectory** | paired FVD (pred vs target) + CLIP-V + CLIP-F/T + VBench | PSNR / SSIM / LPIPS |
 
 Why two tracks: DAVIS is real footage with **no** rendered novel target view, so
 video quality is a *distribution* comparison and camera accuracy is estimated
@@ -37,15 +41,112 @@ vdm-nvs-bench eval --track davis \
   --prompts prompts.json  `# optional {seq: caption}` \
   --out results/davis/
 
-# 2b. Syn4D held-out track (needs paired GT)
+# 2b. Official Syn4D NVS submission / local validation
 vdm-nvs-bench eval --track syn4d \
-  --pred PREDS/ --gt GT/ --cameras CAMERAS/ --source SOURCES/ \
+  --pred submission/predictions --pairs submission/submission.csv \
+  --gt private_validation/gt --cameras nvs_inputs/cameras --source nvs_inputs/sources \
   --out results/syn4d/
 
-# 3. read results/<track>/summary.json  and results/<track>/leaderboard.tsv
+# 3. read results/<track>/summary.json and results/<track>/leaderboard.csv
 ```
 Add `--only camera,video` to run a subset. Add `--clip_model ViT-B-32` for a fast,
 lighter (non-canonical) CLIP. VBench is an optional extra (`pip install -e '.[vbench]'`).
+
+---
+
+## Official Syn4D Kaggle NVS data and submission
+
+The NVS challenge intentionally reuses the **Syn4D Kaggle sequence IDs** from
+Zeren's [participant starter kit](https://github.com/jzr99/syn4d-kaggle-challenge-participants).
+It is a separate NVS task: the input is a source video and a requested target-camera
+trajectory; the submission is a synthesized target-view video. The target RGB and
+all reference metrics remain private on the test split.
+
+Participants obtain the shared public data/index as follows:
+
+```bash
+git clone https://github.com/jzr99/syn4d-kaggle-challenge-participants
+cd syn4d-kaggle-challenge-participants
+
+# Follow the upstream kit to fetch Syn4D_Benchmark and unpack its public files.
+# The organizer additionally releases nvs_inputs/ (below) for the NVS task.
+hf download Syn4D/Syn4D_Benchmark --repo-type dataset --local-dir Syn4D_Benchmark
+```
+
+The NVS release contains these public files:
+
+```
+nvs_inputs/
+  sources/<video>/<trajectory>/source.mp4
+  cameras/<video>/<trajectory>.npz          # requested cam_c2w; (T,4,4)
+  test_pairs.csv                            # canonical list of all required pairs
+  submission_template.csv                   # copy to submission/submission.csv
+```
+
+`video` is the canonical Syn4D identity
+`<variant>__<scene>__<seq_root>` (for example
+`mixed__gothic__seq_000006`); `trajectory` is currently `src0_tgt1`. The
+source is view 0 and the requested output is view 1. This gives both workshop
+challenges a common, traceable split without exposing NVS test targets.
+
+Each participant uploads a directory/archive containing both a **CSV manifest**
+and the generated MP4s:
+
+```
+submission/
+  submission.csv                             # exact rows from submission_template.csv
+  predictions/<video>/<trajectory>/pred.mp4  # one generated video per CSV row
+```
+
+`submission.csv` has required columns `video,trajectory`. It is mandatory even
+when the folder layout is complete: it fixes the evaluation set, makes missing
+videos detectable, and lets the organizer match results to the Kaggle upload.
+Extra columns are permitted (team name, method, commit, etc.) and ignored by
+the scorer. Do not change the `video` or `trajectory` values from the template.
+
+For local validation, the organizer keeps `gt/` beside the public inputs and
+runs:
+
+```bash
+vdm-nvs-bench eval --track syn4d \
+  --pred submission/predictions --pairs submission/submission.csv \
+  --source nvs_validation/sources --cameras nvs_validation/cameras \
+  --gt nvs_validation/gt --num_frames 81 --out results/my_submission
+cat results/my_submission/leaderboard.csv
+```
+
+`leaderboard.csv` contains one aggregate row for the submission. **ATE
+ascending is the ranking key** (`rank_metric=ate`, `rank_direction=ascending`),
+but every computed metric is included in that same CSV: ATE, rotation and
+translation error, FVD, CLIP-F/T/V, PSNR, SSIM, LPIPS, and all five classic
+VBench dimensions. Empty fields mean a metric was intentionally not computed
+or lacked its required input; they are not silently treated as a good score.
+FVD is set-level (not a per-video value), so it is reported for the complete
+submission row.
+
+### Organizer: materialize public inputs and private validation GT
+
+The same local Syn4D layout used for tracking validation (for example
+`/scratch/shared/beegfs/kelvin/Syn4D/subsets/kaggle_eval`) contains source and
+target views plus camera CSVs. Generate the NVS package directly from it:
+
+```bash
+# Smoke test one pair first.
+python scripts/make_syn4d_kaggle_nvs.py \
+  --dataset-root /scratch/shared/beegfs/kelvin/Syn4D/subsets/kaggle_eval \
+  --out nvs_validation --include-gt --limit 1
+
+# Full validation package. Publish only sources/, cameras/, test_pairs.csv,
+# and submission_template.csv; retain nvs_validation/gt privately.
+python scripts/make_syn4d_kaggle_nvs.py \
+  --dataset-root /scratch/shared/beegfs/kelvin/Syn4D/subsets/kaggle_eval \
+  --out nvs_validation --include-gt
+```
+
+The materializer uses source view 0 → target view 1 and the first 81 frames by
+default. Use the same `--num-frames` value in the evaluation command. It emits
+the `test_pairs.csv` / `submission_template.csv` that participants should use;
+no hand-authored pair list is needed.
 
 ---
 
@@ -98,8 +199,9 @@ Notes:
 ## Input format (what YOU provide)
 
 Everything is keyed by a `(seq, traj)` pair. `seq` = a scene/clip id, `traj` =
-a camera-trajectory id. The pair list is either a CSV or auto-discovered by walking
-`--pred`.
+a camera-trajectory id. For the official Syn4D NVS challenge, use the supplied
+`test_pairs.csv` / `submission_template.csv` as `--pairs`; auto-discovery is
+only a convenience for private experiments.
 
 ```
 <pred_root>/<seq>/<traj>/pred.mp4         # REQUIRED  your generated video (or pred_rgb.mp4)
@@ -107,7 +209,7 @@ a camera-trajectory id. The pair list is either a CSV or auto-discovered by walk
 <source_root>/<seq>/<traj>/source.mp4     # source/input video
 <gt_root>/<seq>/<traj>/gt.mp4            # SYN4D ONLY  paired target-view GT
 prompts.json                              # optional  {"<seq>": "caption", ...}
-pairs.csv                                 # optional  header: video,trajectory
+pairs.csv                                 # official NVS: required header video,trajectory (+ optional metadata)
 ```
 
 ### File specs
@@ -118,7 +220,7 @@ pairs.csv                                 # optional  header: video,trajectory
 | `source.mp4` | mp4 | the input/source view. Needed for CLIP-V (syn4d) and the DAVIS FVD reference. |
 | `gt.mp4` | mp4 | Syn4D only: the rendered target-view video for the requested trajectory. |
 | `prompts.json` | JSON | `{seq: caption}`. Enables CLIP-T and is used by VBench temporal_style. |
-| `pairs.csv` | CSV | columns `video,trajectory`. If omitted, pairs are discovered from `<pred_root>/<seq>/<traj>/`. |
+| `pairs.csv` | CSV | Required challenge manifest: columns `video,trajectory`; extra metadata columns are allowed. If omitted, pairs are discovered from `<pred_root>/<seq>/<traj>/` (private use only). |
 
 ### Required vs optional, per track
 - **davis**: `--pred` + `--cameras` required. `--source` strongly recommended (else FVD is skipped). `--prompts` optional (else CLIP-T skipped).
@@ -136,7 +238,8 @@ rotation, and scale need not match any canonical frame — only the trajectory
 ```
 results/<track>/
   summary.json          # everything, merged
-  leaderboard.tsv       # one header row + one values row (see columns below)
+  leaderboard.csv       # challenge row: ATE-ranked, all computed metrics (see below)
+  leaderboard.tsv       # compatibility copy of the same row
   camera_metrics.json   # full camera schema (also embedded in summary.json)
   video_metrics.json
   paired_metrics.json   # syn4d only
@@ -144,8 +247,8 @@ results/<track>/
   _cam_cache/           # per-pair VGGT pose npz + standardized frames (reusable cache)
 ```
 
-### `leaderboard.tsv` columns
-`track  num_pairs  ate  rot_err  trans_err  fvd  clip_f  clip_t  clip_v  psnr  ssim  lpips`
+### `leaderboard.csv` columns
+`track,num_pairs,rank_metric,rank_direction,ate,rot_err,trans_err,fvd,clip_f,clip_t,clip_v,psnr,ssim,lpips,vbench_aesthetic_quality,vbench_imaging_quality,vbench_subject_consistency,vbench_background_consistency,vbench_temporal_style`
 (blank cell = not computed for this track/inputs).
 
 ### `summary.json` schema
@@ -329,7 +432,7 @@ from training). `cam_c2w` is the target view's pose relative to the source frame
 | `--source` | — | source-video root. |
 | `--gt` | — | Syn4D paired target-GT root. |
 | `--prompts` | — | `prompts.json`. |
-| `--pairs` | — | pairs CSV; else auto-discover. |
+| `--pairs` | — | `video,trajectory` CSV manifest. Required for the official NVS submission; else auto-discover. |
 | `--out` | (req) | output dir. |
 | `--only` | all for the track | comma list of `camera,video,paired,vbench`. |
 | `--checkpoint` | auto-download | VGGT-Omega `.pt`. |
@@ -389,7 +492,7 @@ bash scripts/run_gt_sanity_1gpu.sh             # prints a leaderboard row; see t
 vdm-nvs-bench eval --track syn4d \
   --pred  /path/preds   --gt /path/gt --source /path/sources --cameras /path/cameras \
   --out results/syn4d/
-cat results/syn4d/leaderboard.tsv
+cat results/syn4d/leaderboard.csv
 python -c "import json;print(json.dumps(json.load(open('results/syn4d/summary.json'))['video'],indent=2))"
 ```
 
@@ -427,12 +530,12 @@ vdm_nvs_bench/
   weights.py                   # VGGT-Omega + I3D download / resolve
   camera/eval_camera.py        # VGGT-Omega inference driver
   camera/pose_metrics.py       # evo ATE/RPE core
-  camera/vggt_omega/           # vendored VGGT-Omega package
+  camera/                      # VGGT-Omega adapter; official model is an external dependency
   video/eval_video.py          # FVD + CLIP-T/F/V (track-aware)
   video/paired.py              # PSNR/SSIM/LPIPS (syn4d)
   video/common_metrics/        # vendored styleganv-I3D FVD + psnr/ssim
   vbench_eval/run_vbench.py    # classic VBench CLI wrapper
-scripts/{download_weights,make_syn4d_heldout,run_gt_sanity_1gpu}.py|sh
+scripts/{download_weights,make_syn4d_heldout,make_syn4d_kaggle_nvs,run_gt_sanity_1gpu}.py|sh
 configs/{davis,syn4d_heldout}.yaml
 tests/test_smoke.py            # no-GPU self-checks (contracts + evo core)
 examples/                      # submission-format doc + gt-sanity summary

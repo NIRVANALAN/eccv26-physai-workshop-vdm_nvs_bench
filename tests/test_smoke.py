@@ -5,12 +5,18 @@ Covers the two pieces of non-trivial logic that don't need CUDA/weights:
   1. submission-folder resolution (data.contracts)
   2. the evo pose-metric core (camera.pose_metrics) on synthetic trajectories
 """
+import csv
 import tempfile
 from pathlib import Path
+import sys
 
 import numpy as np
 
-from vdm_nvs_bench.data.contracts import build_samples, discover_pairs
+# Work both from an editable install and directly via `python tests/test_smoke.py`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from vdm_nvs_bench.cli import _write_leaderboard_row
+from vdm_nvs_bench.data.contracts import build_samples, discover_pairs, read_pairs_csv
 from vdm_nvs_bench.camera.pose_metrics import compute_pose_metrics
 
 
@@ -35,6 +41,32 @@ def test_contracts_resolution():
         assert s["bear"]["prompt"] == "a bear"
         assert s["camel"]["prompt"] is None
     print("OK  test_contracts_resolution")
+
+
+def test_challenge_csv_contract():
+    """The public test-pair CSV may carry metadata beyond video/trajectory."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        pairs_csv = root / "test_pairs.csv"
+        pairs_csv.write_text(
+            "video,trajectory,variant,source_view,target_view\n"
+            "mixed__gothic__seq_000000,src0_tgt1,mixed,0,1\n"
+        )
+        assert read_pairs_csv(pairs_csv) == [("mixed__gothic__seq_000000", "src0_tgt1")]
+        results = {
+            "num_pairs": 1,
+            "camera": {"ate": {"mean": 0.1}, "rot_err": {"mean": 1.0}, "trans_err": {"mean": 0.2}},
+            "video": {"fvd": {"value": 3.0}, "clip_f": {"value": 0.9}, "clip_t": None, "clip_v": {"value": 0.8}},
+            "paired": {"psnr": 20.0, "ssim": 0.7, "lpips": 0.3},
+            "vbench": {"vbench": {"aesthetic_quality": 0.6, "imaging_quality": 0.7}},
+        }
+        output = root / "leaderboard.csv"
+        _write_leaderboard_row(output, "syn4d", results)
+        row = next(csv.DictReader(output.open()))
+        assert row["rank_metric"] == "ate" and row["rank_direction"] == "ascending"
+        assert set(("ate", "rot_err", "trans_err", "fvd", "clip_f", "clip_t", "clip_v", "psnr", "ssim", "lpips", "vbench_aesthetic_quality", "vbench_imaging_quality", "vbench_subject_consistency", "vbench_background_consistency", "vbench_temporal_style")) <= set(row)
+        assert row["vbench_aesthetic_quality"] == "0.6000"
+    print("OK  test_challenge_csv_contract")
 
 
 def _orbit_c2w(n=20, radius=1.0):
@@ -65,5 +97,6 @@ def test_pose_metrics_identity_and_perturbed():
 
 if __name__ == "__main__":
     test_contracts_resolution()
+    test_challenge_csv_contract()
     test_pose_metrics_identity_and_perturbed()
     print("\nAll smoke checks passed.")

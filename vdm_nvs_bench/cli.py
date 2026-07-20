@@ -91,20 +91,27 @@ def cmd_eval(args: argparse.Namespace) -> None:
             results["vbench"] = {"error": str(exc)}
 
     (out / "summary.json").write_text(json.dumps(results, indent=2))
-    _write_leaderboard_row(out / "leaderboard.tsv", args.track, results)
+    # `leaderboard.csv` is the challenge-facing artifact: one complete row per
+    # submission that the organizer can concatenate and rank by ATE.  Keep the
+    # historical TSV name as a compatibility alias for existing scripts.
+    _write_leaderboard_row(out / "leaderboard.csv", args.track, results, delimiter=",")
+    _write_leaderboard_row(out / "leaderboard.tsv", args.track, results, delimiter="\t")
     print(f"[vdm-nvs-bench] wrote {out/'summary.json'}")
 
 
-def _write_leaderboard_row(path: Path, track: str, results: dict) -> None:
+def _write_leaderboard_row(path: Path, track: str, results: dict, delimiter: str = ",") -> None:
     def g(d, *keys):
         for k in keys:
             d = (d or {}).get(k) if isinstance(d, dict) else None
         return "" if d is None else (f"{d:.4f}" if isinstance(d, (int, float)) else str(d))
 
     cam, vid, paired = results.get("camera"), results.get("video"), results.get("paired")
+    vbench = (results.get("vbench") or {}).get("vbench") or {}
     cols = {
         "track": track,
         "num_pairs": results.get("num_pairs", ""),
+        "rank_metric": "ate",
+        "rank_direction": "ascending",
         "ate": g(cam, "ate", "mean"),
         "rot_err": g(cam, "rot_err", "mean"),
         "trans_err": g(cam, "trans_err", "mean"),
@@ -115,8 +122,13 @@ def _write_leaderboard_row(path: Path, track: str, results: dict) -> None:
         "psnr": g(paired, "psnr"),
         "ssim": g(paired, "ssim"),
         "lpips": g(paired, "lpips"),
+        "vbench_aesthetic_quality": g(vbench, "aesthetic_quality"),
+        "vbench_imaging_quality": g(vbench, "imaging_quality"),
+        "vbench_subject_consistency": g(vbench, "subject_consistency"),
+        "vbench_background_consistency": g(vbench, "background_consistency"),
+        "vbench_temporal_style": g(vbench, "temporal_style"),
     }
-    path.write_text("\t".join(cols) + "\n" + "\t".join(str(v) for v in cols.values()) + "\n")
+    path.write_text(delimiter.join(cols) + "\n" + delimiter.join(str(v) for v in cols.values()) + "\n")
 
 
 def main() -> None:
