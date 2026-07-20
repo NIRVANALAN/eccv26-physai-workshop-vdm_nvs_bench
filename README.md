@@ -1,9 +1,72 @@
-# vdm-nvs-bench
+# PhysAI Dynamic Video Novel-View Synthesis Challenge — participant starter kit
 
-Self-contained evaluation for the **ECCV'26 workshop challenge: video-diffusion
-novel-view synthesis (NVS) under camera control**. A participant clones this repo,
-`pip install`s it, downloads weights once, and scores their generated videos —
-no dependence on any private/cluster code.
+Starter evaluation code and public-data conventions for the PhysAI Dynamic
+Video Novel-View Synthesis (NVS) challenge. It shares Syn4D sequence identities
+with the companion 3D point-tracking challenge, but asks participants to
+synthesize a video from a requested novel camera view.
+
+**➡️ Submit predictions on Kaggle:**
+[PhysAI Dynamic Video Novel View Synthesis](https://www.kaggle.com/competitions/phys-ai-dynamic-video-novel-view-synthesis)
+
+## Task
+
+Given a source video and a requested target-camera trajectory, generate the
+corresponding target-view video. The public inputs use the same canonical Syn4D
+`variant / scene / sequence` identities as the [Syn4D 3D Point-Tracking
+Challenge starter kit](https://github.com/jzr99/syn4d-kaggle-challenge-participants).
+For the current NVS protocol, source camera 0 is rendered toward target camera 1.
+
+## Data
+
+Download the NVS competition data from the [Kaggle challenge
+page](https://www.kaggle.com/competitions/phys-ai-dynamic-video-novel-view-synthesis).
+The public package provides source videos, requested target-camera trajectories,
+and a canonical pair CSV. It deliberately does **not** include target-view RGB
+for the hidden test split.
+
+The package follows this layout:
+
+```
+nvs_inputs/
+  sources/<video>/<trajectory>/source.mp4
+  cameras/<video>/<trajectory>.npz          # requested cam_c2w trajectory
+  test_pairs.csv                            # canonical pairs and metadata
+  submission_template.csv                   # local-evaluator manifest template
+```
+
+## Metric
+
+The Kaggle leaderboard ranks submissions by **mean PSNR** against hidden
+target-view videos (**higher is better**). SSIM, LPIPS, camera ATE/RPE,
+CLIP/FVD, and VBench are retained as diagnostic metrics in the local evaluator;
+they do not change the Kaggle rank.
+
+## Quickstart: validate a generated submission locally
+
+```bash
+# environment (Python >=3.10, CUDA GPU, ffmpeg)
+git clone https://github.com/facebookresearch/vggt-omega && pip install -e vggt-omega
+pip install -e .
+
+# score a local validation split for which the organizer has target GT
+vdm-nvs-bench eval --track syn4d \
+  --pred submission/predictions --pairs submission/submission.csv \
+  --source nvs_validation/sources --cameras nvs_validation/cameras \
+  --gt nvs_validation/gt --out results/my_submission
+cat results/my_submission/leaderboard.csv
+```
+
+`submission.csv` is the local manifest (`video,trajectory`) and each prediction
+is stored as `predictions/<video>/<trajectory>/pred.mp4`. Follow the Kaggle
+competition page for the official upload packaging and deadline.
+
+---
+
+## Evaluation toolkit and developer reference
+
+`vdm-nvs-bench` is the self-contained local evaluator for the ECCV'26 workshop
+challenge. It installs in a Python environment and scores generated videos
+without any private/cluster code.
 
 There are two evaluation modes. The workshop **NVS challenge** uses the Syn4D
 Kaggle split described in [Syn4D 3D Point-Tracking Challenge — participant
@@ -54,7 +117,7 @@ lighter (non-canonical) CLIP. VBench is an optional extra (`pip install -e '.[vb
 
 ---
 
-## Official Syn4D Kaggle NVS data and submission
+## Syn4D NVS data contract (local scorer and organizer)
 
 The NVS challenge intentionally reuses the **Syn4D Kaggle sequence IDs** from
 Zeren's [participant starter kit](https://github.com/jzr99/syn4d-kaggle-challenge-participants).
@@ -62,7 +125,7 @@ It is a separate NVS task: the input is a source video and a requested target-ca
 trajectory; the submission is a synthesized target-view video. The target RGB and
 all reference metrics remain private on the test split.
 
-Participants obtain the shared public data/index as follows:
+The Syn4D tracking starter kit is the shared upstream data/index reference:
 
 ```bash
 git clone https://github.com/jzr99/syn4d-kaggle-challenge-participants
@@ -73,7 +136,7 @@ cd syn4d-kaggle-challenge-participants
 hf download Syn4D/Syn4D_Benchmark --repo-type dataset --local-dir Syn4D_Benchmark
 ```
 
-The NVS release contains these public files:
+The NVS release used by the local scorer contains these public files:
 
 ```
 nvs_inputs/
@@ -89,8 +152,8 @@ nvs_inputs/
 source is view 0 and the requested output is view 1. This gives both workshop
 challenges a common, traceable split without exposing NVS test targets.
 
-Each participant uploads a directory/archive containing both a **CSV manifest**
-and the generated MP4s:
+The local scorer consumes a directory containing a **CSV manifest** and the
+generated MP4s:
 
 ```
 submission/
@@ -98,11 +161,11 @@ submission/
   predictions/<video>/<trajectory>/pred.mp4  # one generated video per CSV row
 ```
 
-`submission.csv` has required columns `video,trajectory`. It is mandatory even
-when the folder layout is complete: it fixes the evaluation set, makes missing
-videos detectable, and lets the organizer match results to the Kaggle upload.
-Extra columns are permitted (team name, method, commit, etc.) and ignored by
-the scorer. Do not change the `video` or `trajectory` values from the template.
+`submission.csv` has required columns `video,trajectory`. It fixes the
+evaluation set and makes missing videos detectable. Extra columns are permitted
+(team name, method, commit, etc.) and ignored by the scorer. Do not change the
+`video` or `trajectory` values from the template. The Kaggle page defines the
+official upload packaging.
 
 For local validation, the organizer keeps `gt/` beside the public inputs and
 runs:
