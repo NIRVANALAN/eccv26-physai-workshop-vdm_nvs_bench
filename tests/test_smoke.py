@@ -11,13 +11,13 @@ from pathlib import Path
 import sys
 
 import numpy as np
+import cv2
 
 # Work both from an editable install and directly via `python tests/test_smoke.py`.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from vdm_nvs_bench.cli import _write_leaderboard_row
+from vdm_nvs_bench.cli import _validate_strict_submission, _write_leaderboard_row
 from vdm_nvs_bench.data.contracts import build_samples, discover_pairs, read_pairs_csv
-from vdm_nvs_bench.camera.pose_metrics import compute_pose_metrics
 
 
 def test_contracts_resolution():
@@ -69,6 +69,25 @@ def test_challenge_csv_contract():
     print("OK  test_challenge_csv_contract")
 
 
+def test_strict_video_submission_contract():
+    with tempfile.TemporaryDirectory() as td:
+        pred = Path(td) / "pred.mp4"
+        writer = cv2.VideoWriter(str(pred), cv2.VideoWriter_fourcc(*"mp4v"), 8, (16, 16))
+        assert writer.isOpened()
+        for _ in range(49):
+            writer.write(np.zeros((16, 16, 3), dtype=np.uint8))
+        writer.release()
+        sample = {"seq": "mixed__gothic__seq_000000", "traj": "src0_tgt1", "pred": pred}
+        _validate_strict_submission([sample], expected_pairs=1, expected_frames=49)
+        try:
+            _validate_strict_submission([sample], expected_pairs=1, expected_frames=48)
+        except SystemExit as exc:
+            assert "exactly 48 frames" in str(exc)
+        else:
+            raise AssertionError("wrong frame count must be rejected")
+    print("OK  test_strict_video_submission_contract")
+
+
 def _orbit_c2w(n=20, radius=1.0):
     """Synthetic forward-facing orbit: c2w with frame 0 ~ identity."""
     mats = []
@@ -81,6 +100,8 @@ def _orbit_c2w(n=20, radius=1.0):
 
 
 def test_pose_metrics_identity_and_perturbed():
+    from vdm_nvs_bench.camera.pose_metrics import compute_pose_metrics
+
     gt = _orbit_c2w()
     # identical -> ATE ~ 0
     m0 = compute_pose_metrics(gt.copy(), gt.copy())
@@ -98,5 +119,6 @@ def test_pose_metrics_identity_and_perturbed():
 if __name__ == "__main__":
     test_contracts_resolution()
     test_challenge_csv_contract()
+    test_strict_video_submission_contract()
     test_pose_metrics_identity_and_perturbed()
     print("\nAll smoke checks passed.")

@@ -31,7 +31,6 @@ nvs_inputs/
   sources/<video>/<trajectory>/source.mp4
   cameras/<video>/<trajectory>.npz          # requested cam_c2w trajectory
   test_pairs.csv                            # canonical pairs and metadata
-  submission_template.csv                   # local-evaluator manifest template
 ```
 
 ## Metric
@@ -50,15 +49,26 @@ pip install -e .
 
 # score a local validation split for which the organizer has target GT
 vdm-nvs-bench eval --track syn4d \
-  --pred submission/predictions --pairs submission/submission.csv \
+  --pred submission/predictions --pairs nvs_inputs/test_pairs.csv --strict_submission \
   --source nvs_validation/sources --cameras nvs_validation/cameras \
   --gt nvs_validation/gt --out results/my_submission
 cat results/my_submission/leaderboard.csv
 ```
 
-`submission.csv` is the local manifest (`video,trajectory`) and each prediction
-is stored as `predictions/<video>/<trajectory>/pred.mp4`. Follow the Kaggle
-competition page for the official upload packaging and deadline.
+Submit a single `submission.zip` to Kaggle. It contains **only** the generated
+videos, at the exact required paths below; do not submit camera `.npz` files or
+a participant pair CSV:
+
+```
+submission.zip
+  predictions/<video>/<trajectory>/pred.mp4
+```
+
+Every row in the provided `test_pairs.csv` must have one `pred.mp4`, and every
+video must contain exactly **49 frames**. `--strict_submission` enforces this
+fixed filename/path/frame-count contract locally before scoring. Follow the
+Kaggle competition page for any platform-level archive-size requirement and
+deadline.
 
 ---
 
@@ -106,7 +116,7 @@ vdm-nvs-bench eval --track davis \
 
 # 2b. Official Syn4D NVS submission / local validation
 vdm-nvs-bench eval --track syn4d \
-  --pred submission/predictions --pairs submission/submission.csv \
+  --pred submission/predictions --pairs nvs_inputs/test_pairs.csv --strict_submission \
   --gt private_validation/gt --cameras nvs_inputs/cameras --source nvs_inputs/sources \
   --out results/syn4d/
 
@@ -143,7 +153,6 @@ nvs_inputs/
   sources/<video>/<trajectory>/source.mp4
   cameras/<video>/<trajectory>.npz          # requested cam_c2w; (T,4,4)
   test_pairs.csv                            # canonical list of all required pairs
-  submission_template.csv                   # copy to submission/submission.csv
 ```
 
 `video` is the canonical Syn4D identity
@@ -152,29 +161,25 @@ nvs_inputs/
 source is view 0 and the requested output is view 1. This gives both workshop
 challenges a common, traceable split without exposing NVS test targets.
 
-The local scorer consumes a directory containing a **CSV manifest** and the
-generated MP4s:
+The Kaggle submission is a ZIP containing only the generated MP4s:
 
 ```
-submission/
-  submission.csv                             # exact rows from submission_template.csv
+submission.zip
   predictions/<video>/<trajectory>/pred.mp4  # one generated video per CSV row
 ```
 
-`submission.csv` has required columns `video,trajectory`. It fixes the
-evaluation set and makes missing videos detectable. Extra columns are permitted
-(team name, method, commit, etc.) and ignored by the scorer. Do not change the
-`video` or `trajectory` values from the template. The Kaggle page defines the
-official upload packaging.
+`test_pairs.csv` is supplied by the organizer and fixes the evaluation set; it
+is **not** a participant submission. Do not rename `pred.mp4`, substitute a
+fallback filename, or omit a pair. Each MP4 must have exactly 49 frames.
 
 For local validation, the organizer keeps `gt/` beside the public inputs and
 runs:
 
 ```bash
 vdm-nvs-bench eval --track syn4d \
-  --pred submission/predictions --pairs submission/submission.csv \
+  --pred submission/predictions --pairs nvs_validation/test_pairs.csv --strict_submission \
   --source nvs_validation/sources --cameras nvs_validation/cameras \
-  --gt nvs_validation/gt --num_frames 81 --out results/my_submission
+  --gt nvs_validation/gt --num_frames 49 --out results/my_submission
 cat results/my_submission/leaderboard.csv
 ```
 
@@ -200,17 +205,16 @@ python scripts/make_syn4d_kaggle_nvs.py \
   --dataset-root /scratch/shared/beegfs/kelvin/Syn4D/subsets/kaggle_eval \
   --out nvs_validation --include-gt --limit 1
 
-# Full validation package. Publish only sources/, cameras/, test_pairs.csv,
-# and submission_template.csv; retain nvs_validation/gt privately.
+# Full validation package. Publish only sources/, cameras/, and test_pairs.csv;
+# retain nvs_validation/gt privately.
 python scripts/make_syn4d_kaggle_nvs.py \
   --dataset-root /scratch/shared/beegfs/kelvin/Syn4D/subsets/kaggle_eval \
   --out nvs_validation --include-gt
 ```
 
-The materializer uses source view 0 → target view 1 and the first 81 frames by
+The materializer uses source view 0 → target view 1 and the first 49 frames by
 default. Use the same `--num-frames` value in the evaluation command. It emits
-the `test_pairs.csv` / `submission_template.csv` that participants should use;
-no hand-authored pair list is needed.
+the official `test_pairs.csv`; no hand-authored pair list is needed.
 
 ---
 
@@ -264,8 +268,8 @@ Notes:
 
 Everything is keyed by a `(seq, traj)` pair. `seq` = a scene/clip id, `traj` =
 a camera-trajectory id. For the official Syn4D NVS challenge, use the supplied
-`test_pairs.csv` / `submission_template.csv` as `--pairs`; auto-discovery is
-only a convenience for private experiments.
+`test_pairs.csv` as `--pairs` together with `--strict_submission`; auto-discovery
+and fallback video names are private-development conveniences only.
 
 ```
 <pred_root>/<seq>/<traj>/pred.mp4         # REQUIRED  your generated video (or pred_rgb.mp4)
@@ -496,7 +500,8 @@ from training). `cam_c2w` is the target view's pose relative to the source frame
 | `--source` | — | source-video root. |
 | `--gt` | — | Syn4D paired target-GT root. |
 | `--prompts` | — | `prompts.json`. |
-| `--pairs` | — | `video,trajectory` CSV manifest. Required for the official NVS submission; else auto-discover. |
+| `--pairs` | — | Official `test_pairs.csv` (`video,trajectory` + metadata) with `--strict_submission`; else auto-discover for private work. |
+| `--strict_submission` | off | Official Kaggle validation: requires every pair's exact `predictions/<video>/<trajectory>/pred.mp4`, with exactly 49 frames. |
 | `--out` | (req) | output dir. |
 | `--only` | all for the track | comma list of `camera,video,paired,vbench`. |
 | `--checkpoint` | auto-download | VGGT-Omega `.pt`. |

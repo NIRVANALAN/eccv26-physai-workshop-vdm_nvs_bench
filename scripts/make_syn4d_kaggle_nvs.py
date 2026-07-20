@@ -64,7 +64,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--source-view", type=int, default=0)
     ap.add_argument("--target-view", type=int, default=1)
-    ap.add_argument("--num-frames", type=int, default=81)
+    ap.add_argument("--num-frames", type=int, default=49)
     ap.add_argument("--height", type=int, default=288)
     ap.add_argument("--width", type=int, default=512)
     ap.add_argument("--fps", type=int, default=12)
@@ -137,12 +137,8 @@ def main() -> None:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    with open(args.out / "submission_template.csv", "w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=["video", "trajectory"])
-        writer.writeheader()
-        writer.writerows({"video": r["video"], "trajectory": r["trajectory"]} for r in rows)
     print(f"[syn4d-kaggle-nvs] wrote {len(rows)} pairs -> {args.out}")
-    print("  publish: sources/, cameras/, test_pairs.csv, submission_template.csv")
+    print("  publish: sources/, cameras/, test_pairs.csv")
     if args.include_gt:
         print("  NOTE: gt/ was written for validation; keep it private for the hidden test.")
 

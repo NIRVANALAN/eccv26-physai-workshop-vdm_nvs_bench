@@ -158,7 +158,7 @@ def run_camera_eval(
     cache_root: Path,
     checkpoint: Path,
     output_json: Optional[Path] = None,
-    pred_filenames: str = DEFAULT_PRED_FILENAMES,
+    pred_filenames: Optional[str] = None,
     num_frames: int = 49,
     target_w: int = 512,
     target_h: int = 288,
@@ -172,7 +172,7 @@ def run_camera_eval(
     """Run VGGT-Omega camera eval over ``pairs`` and return the summary dict."""
     import torch
 
-    templates = [s.strip() for s in pred_filenames.split(",") if s.strip()]
+    templates = [s.strip() for s in (pred_filenames or DEFAULT_PRED_FILENAMES).split(",") if s.strip()]
     os.environ.setdefault("CUDA_VISIBLE_DEVICES", str(gpu))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":

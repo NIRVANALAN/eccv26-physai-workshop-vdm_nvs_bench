@@ -29,10 +29,37 @@ def _pairs_to_csv_list(samples):
     return [(s["seq"], s["traj"]) for s in samples]
 
 
+def _validate_strict_submission(samples: list[dict], expected_pairs: int, expected_frames: int) -> None:
+    """Validate the public Kaggle video contract before expensive metrics run."""
+    if len(samples) != expected_pairs:
+        raise SystemExit(
+            f"Strict submission requires every official pair: resolved {len(samples)}/{expected_pairs} pred.mp4 files."
+        )
+    import cv2
+
+    invalid = []
+    for sample in samples:
+        cap = cv2.VideoCapture(str(sample["pred"]))
+        count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if cap.isOpened() else 0
+        cap.release()
+        if count != expected_frames:
+            invalid.append(f"{sample['seq']}/{sample['traj']} ({count} frames)")
+    if invalid:
+        detail = ", ".join(invalid[:8])
+        suffix = " ..." if len(invalid) > 8 else ""
+        raise SystemExit(
+            f"Strict submission requires exactly {expected_frames} frames in every pred.mp4: {detail}{suffix}"
+        )
+
+
 def cmd_eval(args: argparse.Namespace) -> None:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    if args.strict_submission and not args.pairs:
+        raise SystemExit("--strict_submission requires --pairs pointing to the official test_pairs.csv.")
+    if args.strict_submission and args.num_frames != 49:
+        raise SystemExit("--strict_submission uses the official 49-frame NVS contract; pass --num_frames 49.")
     pairs = read_pairs_csv(Path(args.pairs)) if args.pairs else discover_pairs(Path(args.pred))
     prompts = load_prompts(Path(args.prompts) if args.prompts else None)
     samples = build_samples(
@@ -40,9 +67,12 @@ def cmd_eval(args: argparse.Namespace) -> None:
         source_root=Path(args.source) if args.source else None,
         gt_root=Path(args.gt) if args.gt else None,
         prompts=prompts,
+        strict_pred_name=args.strict_submission,
     )
     if not samples:
         raise SystemExit("No samples resolved — check --pred layout and --pairs.")
+    if args.strict_submission:
+        _validate_strict_submission(samples, expected_pairs=len(pairs), expected_frames=args.num_frames)
     print(f"[vdm-nvs-bench] track={args.track}  pairs={len(samples)}")
 
     components = args.only.split(",") if args.only else list(DEFAULT_COMPONENTS[args.track])
@@ -62,6 +92,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
             output_json=out / "camera_metrics.json",
             num_frames=args.num_frames, target_w=args.target_w, target_h=args.target_h,
             gpu=args.gpu,
+            pred_filenames="pred.mp4" if args.strict_submission else None,
         )
 
     if "video" in components:
@@ -142,6 +173,8 @@ def main() -> None:
     e.add_argument("--gt", help="Syn4D paired target-view GT root: <seq>/<traj>/gt.mp4")
     e.add_argument("--prompts", help="prompts.json {seq: caption}")
     e.add_argument("--pairs", help="pairs csv (video,trajectory); default auto-discover")
+    e.add_argument("--strict_submission", action="store_true",
+                   help="enforce official Kaggle contract: every --pairs row has predictions/<video>/<trajectory>/pred.mp4 with exactly 49 frames")
     e.add_argument("--out", required=True)
     e.add_argument("--only", help="comma list: camera,video,paired,vbench")
     e.add_argument("--checkpoint", help="VGGT-Omega checkpoint (default: auto-download)")

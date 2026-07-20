@@ -53,12 +53,14 @@ def build_samples(
     source_root: Optional[Path] = None,
     gt_root: Optional[Path] = None,
     prompts: Optional[dict] = None,
+    strict_pred_name: bool = False,
 ) -> List[dict]:
     """Resolve every pair into a sample dict with pred/gt/source/prompt paths."""
     prompts = prompts or {}
+    pred_names = ("pred.mp4",) if strict_pred_name else PRED_NAMES
     samples: List[dict] = []
     for seq, traj in pairs:
-        pred = _resolve(pred_root, seq, traj, PRED_NAMES)
+        pred = _resolve(pred_root, seq, traj, pred_names)
         if pred is None:
             print(f"[contracts] WARN: no pred mp4 for {seq}/{traj}; skipping")
             continue
