@@ -36,11 +36,21 @@ nvs_inputs/
 ## Metric
 
 The Kaggle leaderboard ranks submissions by **mean dense-video PSNR** against
-hidden target-view videos (**higher is better**). The scorer decodes the fixed
-MP4 submission tree, takes the first 49 frames, resizes prediction and target
-to **288×512** (height × width), and compares every RGB pixel. SSIM, LPIPS,
-camera ATE/RPE, CLIP/FVD, and VBench are retained as diagnostic metrics in the
-local evaluator; they do not change the Kaggle rank.
+hidden target-view videos (**higher is better**). Kaggle's metric callback
+receives pre-extracted RGB values in a CSV: each row represents one pixel of a
+**288×512** (height × width), first-49-frame target clip. It performs no video
+file I/O or resizing itself. SSIM, LPIPS, camera ATE/RPE, CLIP/FVD, and VBench
+are retained as diagnostic metrics in the local evaluator; they do not change
+the Kaggle rank.
+
+The Kaggle submission is therefore `submission.csv` with `id,R,G,B`. The
+private `solution.csv` additionally contains `sequence`, `valid`, and `Usage`.
+`Usage` assigns Public/Private rows and is removed before the metric callback.
+The canonical row ids enumerate pixels in row-major order (`q = y * 512 + x`)
+and frames `f000` through `f048`; no tracking 512-query subsampling is used.
+The official split contains 128 clips, so a fully dense submission contains
+`128 × 49 × 288 × 512 = 924,844,032` RGB rows. Generate this CSV upstream from
+the fixed MP4 prediction tree using the exact canonical enumeration.
 
 ## Quickstart: validate a generated submission locally
 
@@ -66,9 +76,9 @@ local_predictions/
 
 Every row in the provided `test_pairs.csv` must have one `pred.mp4`, and every
 video must contain exactly **49 frames**. `--strict_submission` enforces this
-fixed filename/path/frame-count contract locally before scoring. The final
-Kaggle submission is an archive of this fixed MP4 tree; it is not a per-pixel
-CSV.
+fixed filename/path/frame-count contract locally before scoring. For Kaggle,
+the MP4 predictions must be converted upstream to the dense `submission.csv`
+described above; the metric callback scores that CSV only.
 
 ---
 
@@ -170,8 +180,8 @@ local_predictions/
 
 `test_pairs.csv` is supplied by the organizer and fixes the evaluation set; it
 is **not** a participant submission. Do not rename `pred.mp4`, substitute a
-fallback filename, or omit a pair. Each MP4 must have exactly 49 frames. The
-final Kaggle upload is an archive of this fixed MP4 tree.
+fallback filename, or omit a pair. Each MP4 must have exactly 49 frames. For
+Kaggle, convert this tree upstream to the canonical dense CSV.
 
 For local validation, the organizer keeps `gt/` beside the public inputs and
 runs:
