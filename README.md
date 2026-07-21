@@ -227,24 +227,11 @@ The materializer uses source view 0 → target view 1 and the first 49 frames by
 default. Use the same `--num-frames` value in the evaluation command. It emits
 the official `test_pairs.csv`; no hand-authored pair list is needed.
 
-### Organizer: create the private Kaggle `solution.csv`
+### Organizer: Kaggle ground truth
 
-The NVS solution reuses the tracking challenge's 2,097,152 row ids, valid mask,
-and Public/Private split. It samples RGB from target view 1 at each released
-query pixel/frame, replacing tracking's `X,Y,Z` values with `R,G,B`:
-
-```bash
-python scripts/make_kaggle_nvs_solution.py \
-  --tracking-solution /path/to/tracking/solution.csv \
-  --queries /path/to/syn4d-kaggle-challenge-participants/data/queries.csv \
-  --dataset-root /path/to/kaggle_eval \
-  --out kaggle_nvs_solution.csv
-```
-
-For constrained machines, use `--limit-sequences`, then resume with
-`--skip-sequences N --append`; pass `--finalize` only to the final batch. Keep
-this generated solution private and upload it as the competition's solution
-file, not as public data.
+Keep the generated `solution.csv`, target videos, and any ground-truth
+generation utilities private. Upload the resulting CSV only through Kaggle's
+private competition-data interface; do not add it to this repository.
 
 ---
 
