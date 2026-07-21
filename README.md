@@ -21,8 +21,8 @@ For the current NVS protocol, source camera 0 is rendered toward target camera 1
 Download the NVS competition data from the [Kaggle challenge
 page](https://www.kaggle.com/competitions/phys-ai-dynamic-video-novel-view-synthesis).
 The public package provides source videos, requested target-camera trajectories,
-and a canonical pair CSV. It deliberately does **not** include target-view RGB
-for the hidden test split.
+query pixels, and a canonical pair CSV. It deliberately does **not** include
+target-view RGB for the hidden test split.
 
 The package follows this layout:
 
@@ -40,6 +40,19 @@ target-view videos (**higher is better**). SSIM, LPIPS, camera ATE/RPE,
 CLIP/FVD, and VBench are retained as diagnostic metrics in the local evaluator;
 they do not change the Kaggle rank.
 
+Kaggle's metric interface receives a CSV, not an MP4. A participant uploads
+`submission.csv` with the fixed tracking-compatible row ids and RGB predictions:
+
+```csv
+id,R,G,B
+og-antiquity-seq_000000_0-q000-f000,123,45,200
+```
+
+The organizer's private `solution.csv` has the corresponding schema
+`id,sequence,valid,Usage,R,G,B`. `Usage` assigns Public/Private rows for Kaggle
+and is removed before the metric callback; `sequence`/`valid` remain available
+to the scorer. Participants do not submit `Usage`, camera `.npz`, or GT video.
+
 ## Quickstart: validate a generated submission locally
 
 ```bash
@@ -55,20 +68,17 @@ vdm-nvs-bench eval --track syn4d \
 cat results/my_submission/leaderboard.csv
 ```
 
-Submit a single `submission.zip` to Kaggle. It contains **only** the generated
-videos, at the exact required paths below; do not submit camera `.npz` files or
-a participant pair CSV:
+For local development, a method writes one fixed-name MP4 per pair:
 
 ```
-submission.zip
+local_predictions/
   predictions/<video>/<trajectory>/pred.mp4
 ```
 
 Every row in the provided `test_pairs.csv` must have one `pred.mp4`, and every
 video must contain exactly **49 frames**. `--strict_submission` enforces this
-fixed filename/path/frame-count contract locally before scoring. Follow the
-Kaggle competition page for any platform-level archive-size requirement and
-deadline.
+fixed filename/path/frame-count contract locally before scoring. The final
+Kaggle `submission.csv` samples these MP4s at the released query pixels.
 
 ---
 
@@ -161,16 +171,17 @@ nvs_inputs/
 source is view 0 and the requested output is view 1. This gives both workshop
 challenges a common, traceable split without exposing NVS test targets.
 
-The Kaggle submission is a ZIP containing only the generated MP4s:
+The local-video contract is a fixed MP4 tree:
 
 ```
-submission.zip
+local_predictions/
   predictions/<video>/<trajectory>/pred.mp4  # one generated video per CSV row
 ```
 
 `test_pairs.csv` is supplied by the organizer and fixes the evaluation set; it
 is **not** a participant submission. Do not rename `pred.mp4`, substitute a
 fallback filename, or omit a pair. Each MP4 must have exactly 49 frames.
+The final Kaggle upload is a CSV of `id,R,G,B` rows derived from these videos.
 
 For local validation, the organizer keeps `gt/` beside the public inputs and
 runs:
@@ -215,6 +226,25 @@ python scripts/make_syn4d_kaggle_nvs.py \
 The materializer uses source view 0 → target view 1 and the first 49 frames by
 default. Use the same `--num-frames` value in the evaluation command. It emits
 the official `test_pairs.csv`; no hand-authored pair list is needed.
+
+### Organizer: create the private Kaggle `solution.csv`
+
+The NVS solution reuses the tracking challenge's 2,097,152 row ids, valid mask,
+and Public/Private split. It samples RGB from target view 1 at each released
+query pixel/frame, replacing tracking's `X,Y,Z` values with `R,G,B`:
+
+```bash
+python scripts/make_kaggle_nvs_solution.py \
+  --tracking-solution /path/to/tracking/solution.csv \
+  --queries /path/to/syn4d-kaggle-challenge-participants/data/queries.csv \
+  --dataset-root /path/to/kaggle_eval \
+  --out kaggle_nvs_solution.csv
+```
+
+For constrained machines, use `--limit-sequences`, then resume with
+`--skip-sequences N --append`; pass `--finalize` only to the final batch. Keep
+this generated solution private and upload it as the competition's solution
+file, not as public data.
 
 ---
 
