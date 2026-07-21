@@ -109,7 +109,12 @@ def cmd_eval(args: argparse.Namespace) -> None:
         else:
             from .video.paired import run_paired_eval
 
-            results["paired"] = run_paired_eval(samples, size=args.fvd_size)
+            results["paired"] = run_paired_eval(
+                samples,
+                height=args.target_h,
+                width=args.target_w,
+                num_frames=args.num_frames,
+            )
             (out / "paired_metrics.json").write_text(json.dumps(results["paired"], indent=2))
 
     if "vbench" in components:

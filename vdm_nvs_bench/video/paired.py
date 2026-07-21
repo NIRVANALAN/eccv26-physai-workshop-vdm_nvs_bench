@@ -23,11 +23,14 @@ def _ensure_import() -> None:
 def run_paired_eval(
     samples: List[dict],
     device: Optional[torch.device] = None,
-    size: int = 256,
+    height: int = 288,
+    width: int = 512,
+    num_frames: int = 49,
 ) -> dict:
     """PSNR/SSIM/LPIPS over (pred, gt) pairs. Samples need a ``gt`` path; those
-    without are skipped. All pairs are resized to a common (size,size) and the
-    common min frame count, then scored as one batch."""
+    without are skipped. For the official Syn4D NVS contract, both videos are
+    compared over their first ``num_frames`` frames after resizing to the common
+    ``height`` × ``width`` canvas."""
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _ensure_import()
     from calculate_lpips import calculate_lpips
@@ -38,18 +41,21 @@ def run_paired_eval(
     for s in samples:
         if not s.get("gt"):
             continue
-        p = load_video(Path(s["pred"]), size=(size, size))
-        g = load_video(Path(s["gt"]), size=(size, size))
-        n = min(p.shape[0], g.shape[0])
-        preds.append(p[:n])
-        gts.append(g[:n])
+        p = load_video(Path(s["pred"]), size=(height, width), max_frames=num_frames)
+        g = load_video(Path(s["gt"]), size=(height, width), max_frames=num_frames)
+        if p.shape[0] != num_frames or g.shape[0] != num_frames:
+            raise ValueError(
+                f"{s['video']}/{s['trajectory']}: PSNR requires exactly "
+                f"{num_frames} decoded frames; got prediction={p.shape[0]}, gt={g.shape[0]}"
+            )
+        preds.append(p)
+        gts.append(g)
 
     if not preds:
         return {"psnr": None, "ssim": None, "lpips": None, "count": 0}
 
-    T = min(v.shape[0] for v in preds)
-    v1 = torch.stack([v[:T] for v in preds], dim=0)  # (N,T,C,H,W) in [0,1]
-    v2 = torch.stack([v[:T] for v in gts], dim=0)
+    v1 = torch.stack(preds, dim=0)  # (N,T,C,H,W) in [0,1]
+    v2 = torch.stack(gts, dim=0)
 
     psnr = calculate_psnr(v1, v2, only_final=True)["value"][0]
     ssim = calculate_ssim(v1, v2, only_final=True)["value"][0]
@@ -59,5 +65,7 @@ def run_paired_eval(
         "ssim": float(ssim),
         "lpips": float(lpips_v),
         "count": v1.shape[0],
-        "num_frames": int(T),
+        "num_frames": int(num_frames),
+        "height": int(height),
+        "width": int(width),
     }
