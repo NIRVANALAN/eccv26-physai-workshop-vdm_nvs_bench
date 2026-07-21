@@ -25,11 +25,10 @@ import numpy as np
 import pandas as pd
 import pandas.api.types
 
-# Pixel value range is auto-detected per call from the ground-truth data
-# itself (see _infer_max_pixel_value), so the metric accepts either [0, 1]
-# floats or [0, 255] RGB values. The official solution uses [0, 255]. Set this
-# to a float (for example 255.0) to override automatic detection.
-MAX_PIXEL_VALUE = None
+# The official solution and every submission use RGB values in [0, 255].
+# Keep this explicit: the metric does not convert model-native ranges such as
+# [-1, 1] or [0, 1] before scoring.
+MAX_PIXEL_VALUE = 255.0
 
 _AUTO_DETECT_THRESHOLD = 1.5
 PSNR_CAP = 60.0
