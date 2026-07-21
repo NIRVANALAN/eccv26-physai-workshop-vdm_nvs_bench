@@ -60,6 +60,8 @@ def cmd_eval(args: argparse.Namespace) -> None:
         raise SystemExit("--strict_submission requires --pairs pointing to the official test_pairs.csv.")
     if args.strict_submission and args.num_frames != 49:
         raise SystemExit("--strict_submission uses the official 49-frame NVS contract; pass --num_frames 49.")
+    if args.strict_submission and (args.target_w != 512 or args.target_h != 288):
+        raise SystemExit("--strict_submission uses the official 512x288 NVS canvas; pass --target_w 512 --target_h 288.")
     pairs = read_pairs_csv(Path(args.pairs)) if args.pairs else discover_pairs(Path(args.pred))
     prompts = load_prompts(Path(args.prompts) if args.prompts else None)
     samples = build_samples(

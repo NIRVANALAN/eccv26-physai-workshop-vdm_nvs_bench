@@ -26,11 +26,20 @@ def run_paired_eval(
     height: int = 288,
     width: int = 512,
     num_frames: int = 49,
+    spatial_stride: int = 8,
+    temporal_stride: int = 8,
 ) -> dict:
     """PSNR/SSIM/LPIPS over (pred, gt) pairs. Samples need a ``gt`` path; those
     without are skipped. For the official Syn4D NVS contract, both videos are
-    compared over their first ``num_frames`` frames after resizing to the common
-    ``height`` × ``width`` canvas."""
+    standardized to ``height`` × ``width`` over their first ``num_frames``
+    frames, area-downsampled by ``spatial_stride``, then temporally sampled
+    every ``temporal_stride`` frames before comparison."""
+    if height % spatial_stride or width % spatial_stride:
+        raise ValueError(
+            f"evaluation canvas {height}x{width} is not divisible by spatial_stride={spatial_stride}"
+        )
+    eval_height, eval_width = height // spatial_stride, width // spatial_stride
+    expected_frames = len(range(0, num_frames, temporal_stride))
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _ensure_import()
     from calculate_lpips import calculate_lpips
@@ -48,6 +57,8 @@ def run_paired_eval(
                 f"{s['video']}/{s['trajectory']}: PSNR requires exactly "
                 f"{num_frames} decoded frames; got prediction={p.shape[0]}, gt={g.shape[0]}"
             )
+        p = torch.nn.functional.interpolate(p[::temporal_stride], size=(eval_height, eval_width), mode="area")
+        g = torch.nn.functional.interpolate(g[::temporal_stride], size=(eval_height, eval_width), mode="area")
         preds.append(p)
         gts.append(g)
 
@@ -65,7 +76,12 @@ def run_paired_eval(
         "ssim": float(ssim),
         "lpips": float(lpips_v),
         "count": v1.shape[0],
-        "num_frames": int(num_frames),
-        "height": int(height),
-        "width": int(width),
+        "num_frames": int(expected_frames),
+        "height": int(eval_height),
+        "width": int(eval_width),
+        "source_num_frames": int(num_frames),
+        "source_height": int(height),
+        "source_width": int(width),
+        "spatial_stride": int(spatial_stride),
+        "temporal_stride": int(temporal_stride),
     }
