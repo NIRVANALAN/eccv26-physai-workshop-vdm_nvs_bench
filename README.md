@@ -18,11 +18,10 @@ For the current NVS protocol, source camera 0 is rendered toward target camera 1
 
 ## Data
 
-Download the NVS competition data from the [Kaggle challenge
-page](https://www.kaggle.com/competitions/phys-ai-dynamic-video-novel-view-synthesis).
-The source-view videos are the already-released Syn4D_Benchmark source data.
+The source-view images are the already-released
+[Syn4D_Benchmark](https://huggingface.co/datasets/Syn4D/Syn4D_Benchmark) data.
 Download and extract the Track-2 companion metadata archive from this starter
-repository (or the Kaggle Data page):
+repository:
 
 ```bash
 tar -xzf data/syn4d_track2_nvs_metadata.tar.gz
@@ -41,9 +40,41 @@ nvs_inputs/
   sample_submission.csv.gz                  # complete id,R,G,B template
 ```
 
-Combine this metadata with the source-view MP4 release already provided with
-Syn4D_Benchmark. Hidden target-view RGB, depth, annotations, and organizer
-solution files are not public.
+Combine this metadata with the released Syn4D_Benchmark source-view data;
+the source-MP4 construction command is provided below. Hidden target-view RGB,
+depth, annotations, and organizer solution files are not public.
+
+## Participant quickstart: public data to Kaggle CSV
+
+```bash
+git clone https://github.com/NIRVANALAN/eccv26-physai-workshop-vdm_nvs_bench
+cd eccv26-physai-workshop-vdm_nvs_bench
+pip install -e .
+
+# 1. Download the released source-view Syn4D data.
+hf download Syn4D/Syn4D_Benchmark --repo-type dataset --local-dir Syn4D_Benchmark
+
+# 2. Extract Track-2 trajectories, manifest, and submission template.
+tar -xzf data/syn4d_track2_nvs_metadata.tar.gz
+
+# 3. Build the required 49-frame source MP4 tree from source PNGs.
+python scripts/make_syn4d_nvs_sources.py \
+  --dataset-root Syn4D_Benchmark \
+  --pairs nvs_inputs/test_pairs.csv \
+  --out nvs_inputs/sources
+
+# 4. Run your method and write one prediction per pair:
+#    predictions/<video>/src0_tgt1/pred.mp4
+
+# 5. Convert predictions to the exact Kaggle CSV and upload it.
+python scripts/make_kaggle_nvs_submission.py \
+  --pred-root predictions \
+  --pairs nvs_inputs/test_pairs.csv \
+  --out submission.csv
+```
+
+If your Syn4D release already provides the canonical source MP4s, step 3 may
+be skipped after placing them under `nvs_inputs/sources/<video>/src0_tgt1/`.
 
 ## Metric
 
