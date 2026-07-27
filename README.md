@@ -20,22 +20,29 @@ For the current NVS protocol, source camera 0 is rendered toward target camera 1
 
 Download the NVS competition data from the [Kaggle challenge
 page](https://www.kaggle.com/competitions/phys-ai-dynamic-video-novel-view-synthesis).
-The public package provides source videos, requested target-camera trajectories,
-query pixels, and a canonical pair CSV. It deliberately does **not** include
-target-view RGB for the hidden test split.
+The source-view videos are the already-released Syn4D_Benchmark source data.
+Download and extract the Track-2 companion metadata archive from this starter
+repository (or the Kaggle Data page):
+
+```bash
+tar -xzf data/syn4d_track2_nvs_metadata.tar.gz
+```
+
+The archive provides requested target-camera trajectories, a canonical pair
+CSV, and the submission template. It deliberately does **not** include
+source videos, target-view RGB, depth, or annotations.
 
 The package follows this layout:
 
 ```
 nvs_inputs/
-  sources/<video>/<trajectory>/source.mp4
   cameras/<video>/<trajectory>.npz          # requested cam_c2w trajectory
   test_pairs.csv                            # canonical pairs and metadata
   sample_submission.csv.gz                  # complete id,R,G,B template
 ```
 
-The release contains source-view videos and requested target-camera
-trajectories only. Hidden target-view RGB, depth, annotations, and organizer
+Combine this metadata with the source-view MP4 release already provided with
+Syn4D_Benchmark. Hidden target-view RGB, depth, annotations, and organizer
 solution files are not public.
 
 ## Metric
@@ -170,17 +177,19 @@ git clone https://github.com/jzr99/syn4d-kaggle-challenge-participants
 cd syn4d-kaggle-challenge-participants
 
 # Follow the upstream kit to fetch Syn4D_Benchmark and unpack its public files.
-# The organizer additionally releases nvs_inputs/ (below) for the NVS task.
 hf download Syn4D/Syn4D_Benchmark --repo-type dataset --local-dir Syn4D_Benchmark
+
+# Extract the small Track-2 camera/manifest/template companion archive.
+tar -xzf data/syn4d_track2_nvs_metadata.tar.gz
 ```
 
 The NVS release used by the local scorer contains these public files:
 
 ```
 nvs_inputs/
-  sources/<video>/<trajectory>/source.mp4
   cameras/<video>/<trajectory>.npz          # requested cam_c2w; (T,4,4)
   test_pairs.csv                            # canonical list of all required pairs
+  sample_submission.csv.gz                  # complete id,R,G,B template
 ```
 
 `video` is the canonical Syn4D identity
