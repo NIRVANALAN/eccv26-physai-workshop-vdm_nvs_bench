@@ -69,7 +69,14 @@ def main() -> None:
     ap.add_argument("--width", type=int, default=512)
     ap.add_argument("--fps", type=int, default=12)
     ap.add_argument("--include-gt", action="store_true", help="write target GT (validation only)")
+    ap.add_argument(
+        "--sequence-csv", type=Path,
+        help="optional public CSV with a `sequence` column; materialize only these official sequences",
+    )
+    ap.add_argument("--skip", type=int, default=0, help="skip this many selected pairs (for resumable batches)")
     ap.add_argument("--limit", type=int, help="materialize at most this many pairs (smoke test)")
+    ap.add_argument("--manifest-only", action="store_true", help="write test_pairs.csv without emitting videos or cameras")
+    ap.add_argument("--camera-only", action="store_true", help="write cameras and test_pairs.csv without source MP4s")
     args = ap.parse_args()
 
     from vdm_nvs_bench.data.syn4d_loader import Camera, Syn4DEvalLoader, get_relative_pose
@@ -86,6 +93,21 @@ def main() -> None:
                 if target_dir.is_dir() and camera_csv.is_file():
                     pairs.append((variant_dir.name, scene_dir.name, seq_root))
 
+    if args.sequence_csv:
+        with args.sequence_csv.open(newline="") as fh:
+            official_sequences = {row["sequence"] for row in csv.DictReader(fh) if row.get("sequence")}
+        before = len(pairs)
+        pairs = [
+            pair for pair in pairs
+            if f"{pair[0]}/{pair[1]}/{pair[2]}_{args.source_view}" in official_sequences
+        ]
+        if not pairs:
+            raise SystemExit(f"No dataset pairs match {args.sequence_csv}")
+        print(f"[syn4d-kaggle-nvs] selected {len(pairs)} official pairs from {before} available pairs")
+
+    if args.skip < 0:
+        raise SystemExit("--skip must be non-negative")
+    pairs = pairs[args.skip:]
     if args.limit is not None:
         pairs = pairs[:args.limit]
     if not pairs:
@@ -95,32 +117,34 @@ def main() -> None:
     trajectory = f"src{args.source_view}_tgt{args.target_view}"
     rows = []
     for index, (variant, scene, seq_root) in enumerate(pairs, 1):
-        # The loader treats its dataset root as the variant directory.  Captions
-        # are optional here, so it deterministically takes frames 0..num_frames-1.
-        loader = Syn4DEvalLoader(
-            dataset_root=root / variant, scene_name=scene, seq_root=seq_root,
-            num_frames=args.num_frames, height=args.height, width=args.width,
-            caption_chunk_size=args.num_frames,
-        )
-        frame_ids = list(range(args.num_frames))
         sequence = _sequence_id(variant, scene, seq_root)
-        source = args.out / "sources" / sequence / trajectory / "source.mp4"
-        _save_mp4(loader.load_video_frames(args.source_view, frame_ids), source, args.fps)
-
-        source0 = Camera(loader.load_pose(args.source_view, frame_ids[0]))
-        c2w = np.stack([
-            get_relative_pose([source0, Camera(loader.load_pose(args.target_view, frame_id))])[1]
-            for frame_id in frame_ids
-        ]).astype(np.float32)
-        camera = args.out / "cameras" / sequence / f"{trajectory}.npz"
-        camera.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(camera, cam_c2w=c2w)
-
-        if args.include_gt:
-            _save_mp4(
-                loader.load_video_frames(args.target_view, frame_ids),
-                args.out / "gt" / sequence / trajectory / "gt.mp4", args.fps,
+        if not args.manifest_only:
+            # The loader treats its dataset root as the variant directory.  Captions
+            # are optional here, so it deterministically takes frames 0..num_frames-1.
+            loader = Syn4DEvalLoader(
+                dataset_root=root / variant, scene_name=scene, seq_root=seq_root,
+                num_frames=args.num_frames, height=args.height, width=args.width,
+                caption_chunk_size=args.num_frames,
             )
+            frame_ids = list(range(args.num_frames))
+            if not args.camera_only:
+                source = args.out / "sources" / sequence / trajectory / "source.mp4"
+                _save_mp4(loader.load_video_frames(args.source_view, frame_ids), source, args.fps)
+
+            source0 = Camera(loader.load_pose(args.source_view, frame_ids[0]))
+            c2w = np.stack([
+                get_relative_pose([source0, Camera(loader.load_pose(args.target_view, frame_id))])[1]
+                for frame_id in frame_ids
+            ]).astype(np.float32)
+            camera = args.out / "cameras" / sequence / f"{trajectory}.npz"
+            camera.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(camera, cam_c2w=c2w)
+
+            if args.include_gt:
+                _save_mp4(
+                    loader.load_video_frames(args.target_view, frame_ids),
+                    args.out / "gt" / sequence / trajectory / "gt.mp4", args.fps,
+                )
         rows.append({
             "video": sequence,
             "trajectory": trajectory,

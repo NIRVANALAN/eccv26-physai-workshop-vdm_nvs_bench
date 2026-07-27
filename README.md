@@ -31,7 +31,12 @@ nvs_inputs/
   sources/<video>/<trajectory>/source.mp4
   cameras/<video>/<trajectory>.npz          # requested cam_c2w trajectory
   test_pairs.csv                            # canonical pairs and metadata
+  sample_submission.csv.gz                  # complete id,R,G,B template
 ```
+
+The release contains source-view videos and requested target-camera
+trajectories only. Hidden target-view RGB, depth, annotations, and organizer
+solution files are not public.
 
 ## Metric
 
@@ -80,6 +85,18 @@ video must contain exactly **49 frames**. `--strict_submission` enforces this
 fixed filename/path/frame-count contract locally before scoring. For Kaggle,
 the MP4 predictions must be converted upstream to the dense `submission.csv`
 described above; the metric callback scores that CSV only.
+
+Use the included converter after creating all required `pred.mp4` files:
+
+```bash
+python scripts/make_kaggle_nvs_submission.py \
+  --pred-root local_predictions/predictions \
+  --pairs nvs_inputs/test_pairs.csv \
+  --out submission.csv
+```
+
+The resulting `submission.csv` has 2,064,384 rows. The provided
+`nvs_inputs/sample_submission.csv.gz` has the same schema and row ids.
 
 ---
 
