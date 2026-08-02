@@ -44,6 +44,28 @@ Combine this metadata with the released Syn4D_Benchmark source-view data;
 the source-MP4 construction command is provided below. Hidden target-view RGB,
 depth, annotations, and organizer solution files are not public.
 
+### Public iPhone validation set
+
+For local model development, this repository also provides a small **public
+iPhone NVS validation set** with five fully paired source-to-target examples.
+Unlike the hidden Syn4D Kaggle test set, it intentionally includes target RGB,
+source LiDAR depth, camera poses, and DyCheck evaluation masks.  Download it
+from the companion Hugging Face dataset and extract it locally (it is not a
+Kaggle submission asset):
+
+```bash
+hf download yslan/ECCV26_PhysAI_Challenge_NVS_Syn4D_subset \
+  iphone_nvs_validation_bundle.tar.gz --repo-type dataset --local-dir iphone_nvs_download
+tar -xzf iphone_nvs_download/iphone_nvs_validation_bundle.tar.gz
+python scripts/eval_iphone_nvs_validation.py \
+  --bundle iphone_nvs_validation_bundle --pred my_predictions
+```
+
+See [the iPhone validation protocol](docs/iphone_nvs_validation.md) for the
+directory contract, camera/depth definitions, and a PSNR/SSIM evaluation
+command.  All videos in this validation bundle are 288×512 (height × width)
+and 49 frames.
+
 ## Participant quickstart: public data to Kaggle CSV
 
 ```bash
